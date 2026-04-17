@@ -11,9 +11,9 @@ export default async function LocaleHomePage({ params }: LocaleHomePageProps) {
   setRequestLocale(locale);
 
   return (
-    <main className="app-shell min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+    <main className="public-shell min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl space-y-6">
-        <section className="panel rounded-[32px] p-6 sm:p-8">
+        <section className="public-panel rounded-[32px] p-6 sm:p-8">
           <SectionHeading
             eyebrow={locale === "hi" ? "मिल्कमैन" : "Milkman"}
             title={
@@ -28,7 +28,7 @@ export default async function LocaleHomePage({ params }: LocaleHomePageProps) {
             }
           />
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Link
               href={`/${locale}/admin/dashboard`}
               className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-primary-strong"

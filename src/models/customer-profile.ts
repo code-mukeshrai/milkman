@@ -23,6 +23,18 @@ const customerProfileSchema = new Schema(
       type: String,
       trim: true,
     },
+    areaCode: {
+      type: String,
+      required: true,
+      trim: true,
+      uppercase: true,
+      index: true,
+    },
+    areaName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     area: {
       type: String,
       trim: true,

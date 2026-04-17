@@ -1,19 +1,27 @@
+import { Clock3, PauseCircle, Truck } from "lucide-react";
+import { DeliveryOperationsPanel } from "@/components/deliveries/delivery-operations-panel";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { AdminCard, AdminStatCard } from "@/components/layout/admin-ui";
+import { getDeliveryOperationOptions, getTodayDeliveriesData } from "@/lib/data-service";
 
 type AdminDeliveriesPageProps = {
   params: Promise<{ locale: string }>;
 };
 
-const tasks = [
-  { name: "Amit Verma", quantity: "2.0 L", status: "Delivered" },
-  { name: "Neha Sharma", quantity: "1.5 L", status: "Pending" },
-  { name: "Rakesh Kumar", quantity: "2.5 L", status: "Pending" },
-];
-
 export default async function AdminDeliveriesPage({
   params,
 }: AdminDeliveriesPageProps) {
   const { locale } = await params;
+  const [entries, options] = await Promise.all([
+    getTodayDeliveriesData(),
+    getDeliveryOperationOptions(),
+  ]);
+
+  const deliveredCount = entries.filter((entry) => entry.status === "DELIVERED").length;
+  const pausedOrSkippedCount = entries.filter(
+    (entry) => entry.status === "PAUSED" || entry.status === "SKIPPED",
+  ).length;
+  const pendingCount = entries.filter((entry) => entry.status === "PENDING").length;
 
   return (
     <AdminShell
@@ -21,44 +29,53 @@ export default async function AdminDeliveriesPage({
       title={locale === "hi" ? "आज की डिलीवरी" : "Today's Deliveries"}
       subtitle={
         locale === "hi"
-          ? "मोबाइल पर जल्दी mark करने के लिए one-tap actions."
-          : "One-tap actions for fast delivery marking on mobile."
+          ? "मोबाइल पर जल्दी mark करने, extra milk जोड़ने और add-on products save करने के लिए."
+          : "One-tap actions for delivery marking, extra milk overrides, and add-on products."
       }
     >
-      <section className="grid gap-3">
-        {tasks.map((task) => (
-          <article key={task.name} className="panel rounded-[30px] p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">{task.name}</h2>
-                <p className="text-sm text-muted">
-                  {task.quantity} planned for today • {task.status}
-                </p>
-              </div>
-              <div className="grid grid-cols-3 gap-2 sm:w-[320px]">
-                <button
-                  type="button"
-                  className="rounded-2xl bg-primary px-3 py-3 text-sm font-semibold text-white"
-                >
-                  Delivered
-                </button>
-                <button
-                  type="button"
-                  className="rounded-2xl border border-border bg-white px-3 py-3 text-sm font-semibold"
-                >
-                  Skip
-                </button>
-                <button
-                  type="button"
-                  className="rounded-2xl border border-border bg-white px-3 py-3 text-sm font-semibold"
-                >
-                  Pause
-                </button>
-              </div>
-            </div>
-          </article>
-        ))}
-      </section>
+      <div className="grid gap-4 md:grid-cols-3">
+        <AdminStatCard
+          label="Delivered"
+          value={String(deliveredCount)}
+          hint="Saved directly from today's delivery records"
+          icon={Truck}
+          tone="success"
+        />
+        <AdminStatCard
+          label="Pending"
+          value={String(pendingCount)}
+          hint="Needs doorstep confirmation or status update"
+          icon={Clock3}
+          tone="warning"
+        />
+        <AdminStatCard
+          label="Paused/Skipped"
+          value={String(pausedOrSkippedCount)}
+          hint="Temporary plan changes or no-delivery entries"
+          icon={PauseCircle}
+          tone="danger"
+        />
+      </div>
+
+      <AdminCard>
+        <p className="text-sm text-[var(--admin-muted)]">
+          Super admin can mark delivered customers, save one-time extra milk, and attach ad hoc
+          products like ghee or lassi for the same date without breaking monthly analytics.
+        </p>
+      </AdminCard>
+
+      <DeliveryOperationsPanel
+        entries={entries}
+        customers={options.customers.map((customer) => ({
+          customerCode: customer.customerCode,
+          name: customer.name,
+        }))}
+        products={options.products.map((product) => ({
+          code: product.code,
+          name: product.name,
+          category: product.category,
+        }))}
+      />
     </AdminShell>
   );
 }

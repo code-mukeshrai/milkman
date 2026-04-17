@@ -17,6 +17,26 @@ const deliverySchema = new Schema(
       required: true,
       min: 0,
     },
+    baseQuantity: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    extraQuantity: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    finalQuantity: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    pricePerLiter: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
     status: {
       type: String,
       enum: ["DELIVERED", "SKIPPED", "PAUSED"],
@@ -27,6 +47,48 @@ const deliverySchema = new Schema(
       type: String,
       trim: true,
     },
+    items: [
+      {
+        productId: {
+          type: Types.ObjectId,
+          ref: "Product",
+        },
+        productCode: {
+          type: String,
+          trim: true,
+          uppercase: true,
+        },
+        productName: {
+          type: String,
+          trim: true,
+        },
+        category: {
+          type: String,
+          enum: ["MILK", "DAIRY_ADDON", "OTHER"],
+          default: "DAIRY_ADDON",
+        },
+        unit: {
+          type: String,
+          trim: true,
+          default: "UNIT",
+        },
+        quantity: {
+          type: Number,
+          min: 0,
+          default: 0,
+        },
+        rate: {
+          type: Number,
+          min: 0,
+          default: 0,
+        },
+        totalAmount: {
+          type: Number,
+          min: 0,
+          default: 0,
+        },
+      },
+    ],
     markedBy: {
       type: Types.ObjectId,
       ref: "User",

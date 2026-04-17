@@ -1,4 +1,5 @@
 import { CustomerShell } from "@/components/layout/customer-shell";
+import { getCustomerProfileData } from "@/lib/data-service";
 
 type CustomerProfilePageProps = {
   params: Promise<{ locale: string }>;
@@ -8,6 +9,16 @@ export default async function CustomerProfilePage({
   params,
 }: CustomerProfilePageProps) {
   const { locale } = await params;
+  const profile = await getCustomerProfileData();
+  const rows = profile
+    ? [
+        ["Name", profile.name],
+        ["Phone", profile.phone],
+        ["Address", profile.address],
+        ["Area", `${profile.areaName} • ${profile.areaCode}`],
+        ["Preferred language", profile.preferredLanguage === "hi" ? "हिंदी" : "English"],
+      ]
+    : [];
 
   return (
     <CustomerShell
@@ -19,18 +30,10 @@ export default async function CustomerProfilePage({
           : "Your contact information and delivery address."
       }
     >
-      <section className="panel rounded-[30px] p-5">
+      <section className="public-panel rounded-[30px] p-5">
         <div className="grid gap-3">
-          {[
-            ["Name", "Amit Verma"],
-            ["Phone", "+91 98765 43210"],
-            ["Address", "12 Green Park, Near Hanuman Mandir"],
-            ["Preferred language", locale === "hi" ? "हिंदी" : "English"],
-          ].map(([label, value]) => (
-            <div
-              key={label}
-              className="rounded-[22px] border border-border bg-white px-4 py-3"
-            >
+          {rows.map(([label, value]) => (
+            <div key={label} className="rounded-[22px] border border-border bg-white px-4 py-3">
               <p className="text-sm text-muted">{label}</p>
               <p className="mt-1 font-medium">{value}</p>
             </div>

@@ -9,8 +9,8 @@ export default async function LoginPage({ params }: LoginPageProps) {
   const { locale } = await params;
 
   return (
-    <main className="app-shell flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
-      <div className="panel w-full max-w-md rounded-[32px] p-6 sm:p-8">
+    <main className="public-shell flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
+      <div className="public-panel w-full max-w-md rounded-[32px] p-6 sm:p-8">
         <SectionHeading
           eyebrow={locale === "hi" ? "सुरक्षित लॉगिन" : "Secure Login"}
           title={locale === "hi" ? "अपना खाता खोलें" : "Access your account"}
@@ -26,7 +26,7 @@ export default async function LoginPage({ params }: LoginPageProps) {
             <span className="text-sm font-medium">
               {locale === "hi" ? "मोबाइल नंबर" : "Mobile number"}
             </span>
-            <div className="soft-ring flex items-center gap-3 rounded-2xl border border-border bg-white px-4 py-3">
+            <div className="public-soft-ring flex items-center gap-3 rounded-2xl border border-border bg-white px-4 py-3">
               <Phone className="h-4 w-4 text-muted" />
               <input
                 className="w-full bg-transparent outline-none"
@@ -39,7 +39,7 @@ export default async function LoginPage({ params }: LoginPageProps) {
             <span className="text-sm font-medium">
               {locale === "hi" ? "पासवर्ड" : "Password"}
             </span>
-            <div className="flex items-center gap-3 rounded-2xl border border-border bg-white px-4 py-3">
+            <div className="public-soft-ring flex items-center gap-3 rounded-2xl border border-border bg-white px-4 py-3">
               <LockKeyhole className="h-4 w-4 text-muted" />
               <input
                 type="password"

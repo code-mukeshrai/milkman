@@ -1,19 +1,15 @@
 import { CustomerShell } from "@/components/layout/customer-shell";
+import { getCustomerHistoryData } from "@/lib/data-service";
 
 type CustomerHistoryPageProps = {
   params: Promise<{ locale: string }>;
 };
 
-const entries = [
-  ["14 Apr 2026", "2.0 L", "Delivered"],
-  ["13 Apr 2026", "2.0 L", "Delivered"],
-  ["12 Apr 2026", "2.0 L", "Skipped"],
-];
-
 export default async function CustomerHistoryPage({
   params,
 }: CustomerHistoryPageProps) {
   const { locale } = await params;
+  const entries = await getCustomerHistoryData();
 
   return (
     <CustomerShell
@@ -21,22 +17,32 @@ export default async function CustomerHistoryPage({
       title={locale === "hi" ? "डिलीवरी हिस्ट्री" : "Delivery History"}
       subtitle={
         locale === "hi"
-          ? "हाल की डिलीवरी एंट्री और स्टेटस देखें."
-          : "Review recent delivery entries and statuses."
+          ? "हाल की डिलीवरी एंट्री, extra milk और add-on items देखें."
+          : "Review recent delivery entries, extra milk, and add-on items."
       }
     >
-      <section className="panel rounded-[30px] p-5">
+      <section className="public-panel rounded-[30px] p-5">
         <div className="space-y-3">
-          {entries.map(([date, quantity, status]) => (
+          {entries.map((entry) => (
             <div
-              key={date}
-              className="flex items-center justify-between rounded-[22px] border border-border bg-white px-4 py-3"
+              key={`${entry.dateLabel}-${entry.status}`}
+              className="flex flex-col gap-3 rounded-[22px] border border-border bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
-                <p className="font-medium">{date}</p>
-                <p className="text-sm text-muted">{quantity}</p>
+                <p className="font-medium">{entry.dateLabel}</p>
+                <p className="text-sm text-muted">
+                  {entry.finalQuantity.toFixed(1)} L • Extra {entry.extraQuantity.toFixed(1)} L
+                </p>
+                {entry.addOnItems.length ? (
+                  <p className="mt-1 text-sm text-muted">
+                    Add-ons:{" "}
+                    {entry.addOnItems
+                      .map((item) => `${item.productName || item.productCode} x ${item.quantity || 0}`)
+                      .join(", ")}
+                  </p>
+                ) : null}
               </div>
-              <p className="text-sm font-medium text-primary">{status}</p>
+              <p className="text-sm font-medium text-primary">{entry.status}</p>
             </div>
           ))}
         </div>

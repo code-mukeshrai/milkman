@@ -1,0 +1,85 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { connectToDatabase } from "@/lib/db/connect";
+import { normalizeAreaCode } from "@/lib/areas";
+import { Area } from "@/models/area";
+import { Vendor } from "@/models/vendor";
+import { PurchaseEntry } from "@/models/purchase-entry";
+
+const vendorSchema = z.object({
+  code: z.string().trim().optional(),
+  name: z.string().trim().min(2),
+  phone: z.string().trim().optional(),
+  areaCode: z.string().trim().optional(),
+  notes: z.string().trim().optional(),
+  isActive: z.boolean().optional(),
+});
+
+type RouteContext = {
+  params: Promise<{ vendorCode: string }>;
+};
+
+export async function PUT(request: Request, context: RouteContext) {
+  try {
+    await connectToDatabase();
+    const { vendorCode } = await context.params;
+    const payload = vendorSchema.parse(await request.json());
+    const nextCode = normalizeAreaCode(payload.code || payload.name);
+    const vendor = await Vendor.findOne({ code: vendorCode });
+
+    if (!vendor) {
+      return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
+    }
+
+    if (nextCode !== vendorCode) {
+      const duplicate = await Vendor.findOne({ code: nextCode }).lean();
+      if (duplicate) {
+        return NextResponse.json({ error: "Vendor code already exists" }, { status: 409 });
+      }
+    }
+
+    const area = payload.areaCode ? await Area.findOne({ code: payload.areaCode }).lean() : null;
+
+    vendor.code = nextCode;
+    vendor.name = payload.name;
+    vendor.phone = payload.phone || "";
+    vendor.areaCode = area?.code || payload.areaCode || "";
+    vendor.areaName = area?.name || "";
+    vendor.notes = payload.notes || "";
+    vendor.isActive = payload.isActive ?? vendor.isActive;
+    await vendor.save();
+
+    await PurchaseEntry.updateMany(
+      { vendorCode },
+      { $set: { vendorCode: vendor.code, vendorName: vendor.name } },
+    );
+
+    return NextResponse.json({ vendor });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0]?.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ error: "Failed to update vendor" }, { status: 500 });
+  }
+}
+
+export async function DELETE(_: Request, context: RouteContext) {
+  await connectToDatabase();
+  const { vendorCode } = await context.params;
+  const linkedEntries = await PurchaseEntry.countDocuments({ vendorCode });
+
+  if (linkedEntries > 0) {
+    return NextResponse.json(
+      { error: "Cannot delete a vendor with purchase entries" },
+      { status: 409 },
+    );
+  }
+
+  const deleted = await Vendor.findOneAndDelete({ code: vendorCode }).lean();
+  if (!deleted) {
+    return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
