@@ -1,0 +1,166 @@
+{
+  "brand": {
+    "name": "ਡੇਅਰਲੀ",
+    "tagline": "ਹਰ ਸਵੇਰ ਤਾਜ਼ਾ ਦੁੱਧ"
+  },
+  "common": {
+    "appName": "ਮਿਲਕਮੈਨ",
+    "viewAll": "ਸਾਰੇ ਵੇਖੋ",
+    "skip": "ਛੱਡੋ",
+    "back": "ਵਾਪਸ",
+    "next": "ਅੱਗੇ",
+    "save": "ਸੇਵ ਕਰੋ",
+    "cancel": "ਰੱਦ ਕਰੋ",
+    "continue": "ਜਾਰੀ ਰੱਖੋ",
+    "close": "ਬੰਦ ਕਰੋ",
+    "retry": "ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ",
+    "notAvailable": "ਉਪਲਬਧ ਨਹੀਂ",
+    "perLiter": "ਪ੍ਰਤੀ ਲੀਟਰ",
+    "liters": "ਲੀ",
+    "perDay": "/ ਦਿਨ"
+  },
+  "lang": {
+    "label": "ਭਾਸ਼ਾ",
+    "english": "English",
+    "hindi": "ਹਿੰਦੀ",
+    "punjabi": "ਪੰਜਾਬੀ"
+  },
+  "roles": {
+    "customer": "ਕਸਟਮਰ",
+    "admin": "ਐਡਮਿਨ",
+    "vendor": "ਵੈਂਡਰ"
+  },
+  "auth": {
+    "eyebrow": "ਸੁਰੱਖਿਅਤ ਲੌਗਇਨ",
+    "title": "ਆਪਣਾ ਖਾਤਾ ਖੋਲ੍ਹੋ",
+    "description": "ਜਾਰੀ ਰੱਖਣ ਲਈ ਆਪਣੇ ਰਜਿਸਟਰਡ ਮੋਬਾਇਲ ਨੰਬਰ ਨਾਲ ਲੌਗਇਨ ਕਰੋ।",
+    "mobile": "ਮੋਬਾਇਲ ਨੰਬਰ",
+    "mobilePlaceholder": "10 ਅੰਕ ਦਾ ਨੰਬਰ",
+    "password": "ਪਾਸਵਰਡ",
+    "passwordPlaceholder": "ਪਾਸਵਰਡ ਦਾਖਲ ਕਰੋ",
+    "submit": "ਲੌਗਇਨ",
+    "forgot": "ਪਾਸਵਰਡ ਭੁੱਲ ਗਏ?"
+  },
+  "home": {
+    "hero": {
+      "eyebrow": "ਕੱਲ੍ਹ · 6:00 AM",
+      "title": "ਹਰ ਸਵੇਰ ਤਾਜ਼ਾ ਦੁੱਧ ਤੁਹਾਡੇ ਦਰਵਾਜ਼ੇ ਤੇ",
+      "subtitle": "ਤੁਹਾਡੀ ਸ਼ਡਿਊਲਡ ਡਿਲੀਵਰੀ ਰਾਹ ਵਿੱਚ ਹੈ।",
+      "pause": "ਰੋਕੋ",
+      "track": "ਟ੍ਰੈਕ ਕਰੋ"
+    },
+    "quickActions": "ਤੁਰੰਤ ਕਾਰਵਾਈਆਂ",
+    "subscribe": "ਸਬਸਕ੍ਰਾਈਬ",
+    "schedule": "ਸ਼ਡਿਊਲ",
+    "topUp": "ਟਾਪ ਅੱਪ",
+    "history": "ਇਤਿਹਾਸ",
+    "subscriptions": "ਤੁਹਾਡੀਆਂ ਸਬਸਕ੍ਰਿਪਸ਼ਨਾਂ",
+    "greeting": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ, {name}",
+    "location": "ਡਿਲੀਵਰੀ ਪਤਾ"
+  },
+  "nav": {
+    "home": "ਹੋਮ",
+    "plans": "ਪਲਾਨ",
+    "calendar": "ਕੈਲੰਡਰ",
+    "wallet": "ਵਾਲਿਟ",
+    "billing": "ਬਿਲਿੰਗ",
+    "history": "ਇਤਿਹਾਸ",
+    "profile": "ਪ੍ਰੋਫਾਈਲ",
+    "dashboard": "ਡੈਸ਼ਬੋਰਡ",
+    "customers": "ਕਸਟਮਰ",
+    "deliveries": "ਡਿਲੀਵਰੀਆਂ",
+    "reports": "ਰਿਪੋਰਟਾਂ",
+    "newPlan": "ਨਵਾਂ ਪਲਾਨ"
+  },
+  "status": {
+    "active": "ਚਾਲੂ",
+    "paused": "ਰੁਕਿਆ",
+    "delivered": "ਡਿਲੀਵਰ",
+    "skipped": "ਛੱਡਿਆ",
+    "pending": "ਬਾਕੀ",
+    "today": "ਅੱਜ"
+  },
+  "dashboard": {
+    "title": "ਮੇਰਾ ਡੈਸ਼ਬੋਰਡ",
+    "subtitle": "ਤੁਹਾਡਾ ਦੁੱਧ ਪਲਾਨ, ਹਾਲੀਆ ਡਿਲੀਵਰੀਆਂ ਅਤੇ ਅਦਾਇਗੀ ਸਥਿਤੀ।",
+    "dailyPlan": "ਰੋਜ਼ਾਨਾ ਪਲਾਨ",
+    "thisMonth": "ਇਸ ਮਹੀਨੇ",
+    "monthHint": "ਡਿਲੀਵਰ ਹੋਏ ਦੁੱਧ ਅਤੇ add-ons ਦਾ ਅਸਲੀ ਬਿੱਲ",
+    "pendingDue": "ਬਕਾਇਆ",
+    "todaysStatus": "ਅੱਜ ਦੀ ਸਥਿਤੀ",
+    "deliveryStatus": "ਡਿਲੀਵਰੀ ਸਥਿਤੀ: {status}",
+    "planLine": "ਤੁਹਾਡਾ ਪਲਾਨ {plan} ਹੈ। ਇਸ ਮਹੀਨੇ ਦਾ ਬਿੱਲ: {billed}। ਬਕਾਇਆ: {due}।",
+    "lastUpdate": "ਆਖਰੀ ਅੱਪਡੇਟ",
+    "noUpdate": "ਹਾਲੇ ਕੋਈ ਅੱਪਡੇਟ ਨਹੀਂ",
+    "nextDelivery": "ਅਗਲੀ ਡਿਲੀਵਰੀ ਕੱਲ੍ਹ",
+    "noCustomer": "ਹਾਲੇ ਕੋਈ ਕਸਟਮਰ ਰਿਕਾਰਡ ਉਪਲਬਧ ਨਹੀਂ।",
+    "noCustomerTitle": "ਮੇਰਾ ਡੈਸ਼ਬੋਰਡ",
+    "noCustomerSubtitle": "ਜਦੋਂ ਕਸਟਮਰ ਡਾਟਾ ਉਪਲਬਧ ਹੋਵੇਗਾ, ਸਾਰਾਂਸ਼ ਇੱਥੇ ਦਿਖੇਗਾ।"
+  },
+  "calendar": {
+    "title": "ਮੇਰਾ ਕੈਲੰਡਰ",
+    "subtitle": "ਦਿਨ-ਵਾਰ ਦੁੱਧ ਵਰਤੋਂ, ਛੱਡੇ ਦਿਨ ਅਤੇ ਮਹੀਨਾਵਾਰ ਅੰਦਾਜ਼ਾ।",
+    "monthlyLiters": "ਮਹੀਨਾਵਾਰ ਲੀਟਰ",
+    "routeSummary": "{area} ਰੂਟ ਸਾਰਾਂਸ਼",
+    "deliveredDays": "ਡਿਲੀਵਰ ਦਿਨ",
+    "skippedPaused": "{skipped} ਛੱਡੇ · {paused} ਰੁਕੇ",
+    "estimatedBill": "ਅੰਦਾਜ਼ਨ ਬਿੱਲ",
+    "estimateHint": "ਡਿਲੀਵਰ ਵਰਤੋਂ ਅਤੇ add-ons ਦੇ ਆਧਾਰ ਤੇ ਅੰਦਾਜ਼ਾ",
+    "headline": "ਵਰਤੋਂ ਕੈਲੰਡਰ",
+    "headlineHint": "{month} ਵਿੱਚ ਤੁਹਾਡੇ ਪਲਾਨ ਦੀਆਂ ਦੈਨਿਕ ਐਂਟਰੀਆਂ।",
+    "legend": {
+      "delivered": "ਡਿਲੀਵਰ",
+      "paused": "ਰੁਕਿਆ",
+      "skipped": "ਛੱਡਿਆ"
+    },
+    "avgPerDay": "ਕਾਰਜਸ਼ੀਲ ਦਿਨ ਦਾ ਔਸਤ",
+    "pausedDays": "ਰੁਕੇ ਦਿਨ",
+    "pausedCount": "ਇਸ ਮਹੀਨੇ {count}",
+    "billingRate": "ਬਿਲਿੰਗ ਦਰ",
+    "perLiter": "{amount} ਪ੍ਰਤੀ ਲੀਟਰ",
+    "addOns": "{count} add-ons",
+    "noData": "ਹਾਲੇ ਕੋਈ ਕੈਲੰਡਰ ਡਾਟਾ ਉਪਲਬਧ ਨਹੀਂ।",
+    "emptySubtitle": "ਜਦੋਂ ਡਿਲੀਵਰੀ ਡਾਟਾ ਉਪਲਬਧ ਹੋਵੇਗਾ, ਕੈਲੰਡਰ ਇੱਥੇ ਦਿਖੇਗਾ।"
+  },
+  "billing": {
+    "title": "ਮੇਰਾ ਬਿੱਲ",
+    "subtitle": "ਮੌਜੂਦਾ ਮਹੀਨੇ ਦਾ ਬਿਲਿੰਗ ਸਾਰਾਂਸ਼ ਅਤੇ ਬਕਾਇਆ।",
+    "monthlyBill": "ਮਹੀਨਾਵਾਰ ਬਿੱਲ",
+    "amountPaid": "ਭੁਗਤਾਨ ਕੀਤੀ ਰਕਮ",
+    "pendingDue": "ਬਕਾਇਆ",
+    "recentAddOns": "ਹਾਲੀਆ ਬਿਲਯੋਗ add-ons",
+    "noAddOns": "ਇਸ ਮਹੀਨੇ ਕੋਈ add-on ਬਿੱਲ ਨਹੀਂ।"
+  },
+  "history": {
+    "title": "ਡਿਲੀਵਰੀ ਇਤਿਹਾਸ",
+    "subtitle": "ਹਾਲੀਆ ਡਿਲੀਵਰੀਆਂ, ਵਾਧੂ ਦੁੱਧ ਅਤੇ add-on ਵੇਖੋ।",
+    "extra": "ਵਾਧੂ {amount} ਲੀ",
+    "addOnsLabel": "Add-ons:",
+    "empty": "ਹਾਲੇ ਕੋਈ ਡਿਲੀਵਰੀ ਇਤਿਹਾਸ ਨਹੀਂ।"
+  },
+  "profile": {
+    "title": "ਮੇਰੀ ਪ੍ਰੋਫਾਈਲ",
+    "subtitle": "ਤੁਹਾਡੀ ਸੰਪਰਕ ਜਾਣਕਾਰੀ ਅਤੇ ਡਿਲੀਵਰੀ ਪਤਾ।",
+    "name": "ਨਾਮ",
+    "phone": "ਫ਼ੋਨ",
+    "address": "ਪਤਾ",
+    "area": "ਏਰੀਆ",
+    "preferredLanguage": "ਪਸੰਦੀਦਾ ਭਾਸ਼ਾ",
+    "signOut": "ਸਾਈਨ ਆਉਟ"
+  },
+  "landing": {
+    "eyebrow": "ਮਿਲਕਮੈਨ",
+    "title": "ਦੁੱਧ ਡਿਲੀਵਰੀ ਲਈ ਬਹੁਭਾਸ਼ਾਈ ਸਟਾਰਟਰ",
+    "description": "ਰੈਸਪੌਂਸਿਵ ਐਡਮਿਨ ਅਤੇ ਕਸਟਮਰ ਪੈਨਲ, MongoDB ਬੁਨਿਆਦ ਅਤੇ INR-ਅਨੁਕੂਲ ਬਿਲਿੰਗ।",
+    "openAdmin": "ਐਡਮਿਨ ਖੋਲ੍ਹੋ",
+    "customerView": "ਕਸਟਮਰ ਵਿਊ",
+    "quickRoutes": "ਤੁਰੰਤ ਰੂਟ",
+    "starterStatus": "ਸਟਾਰਟਰ ਸਥਿਤੀ",
+    "statusItems": {
+      "shell": "ਰੈਸਪੌਂਸਿਵ ਐਡਮਿਨ ਸ਼ੈੱਲ ਤਿਆਰ",
+      "locales": "English, Hindi ਅਤੇ Punjabi ਸੁਨੇਹਾ ਫਾਈਲਾਂ",
+      "mongo": "MongoDB ਕਨੈਕਸ਼ਨ ਹੈਲਪਰ ਅਤੇ ਮਾਡਲ",
+      "skeletons": "ਕਸਟਮਰ ਅਤੇ ਐਡਮਿਨ ਸਕੈਲਿਟਨ ਪੇਜ ਤਿਆਰ"
+    }
+  }
+}

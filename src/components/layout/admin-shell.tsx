@@ -32,15 +32,15 @@ type AdminShellProps = {
 
 const navItems = [
   { href: "dashboard", label: "Dashboard", icon: Home },
-  { href: "customers", label: "Customers", icon: Users },
-  { href: "areas", label: "Areas", icon: Building2 },
-  { href: "products", label: "Products", icon: Package2 },
   { href: "vendors", label: "Vendors", icon: Store },
-  { href: "purchases", label: "Purchases", icon: ShoppingCart },
-  { href: "calendar", label: "Calendar", icon: CalendarDays },
+  { href: "customers", label: "Customers", icon: Users },
   { href: "deliveries", label: "Deliveries", icon: Droplets },
+  { href: "calendar", label: "Calendar", icon: CalendarDays },
   { href: "billing", label: "Billing", icon: CreditCard },
   { href: "reports", label: "Reports", icon: ChartColumn },
+  { href: "purchases", label: "Purchases", icon: ShoppingCart },
+  { href: "areas", label: "Areas", icon: Building2 },
+  { href: "products", label: "Products", icon: Package2 },
 ];
 
 export function AdminShell({ children, locale, title, subtitle }: AdminShellProps) {

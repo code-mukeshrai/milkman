@@ -1,15 +1,166 @@
 {
-  "appName": "मिल्कमैन",
-  "tagline": "दूध डिलीवरी और बिलिंग प्रबंधन",
-  "admin": "एडमिन",
-  "customer": "कस्टमर",
-  "dashboard": "डैशबोर्ड",
-  "customers": "कस्टमर्स",
-  "deliveries": "डिलीवरी",
-  "billing": "बिलिंग",
-  "reports": "रिपोर्ट्स",
-  "todayOverview": "आज का ओवरव्यू",
-  "quickActions": "क्विक एक्शन्स",
-  "viewAll": "सब देखें",
-  "login": "लॉगिन"
+  "brand": {
+    "name": "डेयरली",
+    "tagline": "हर सुबह ताज़ा दूध"
+  },
+  "common": {
+    "appName": "मिल्कमैन",
+    "viewAll": "सब देखें",
+    "skip": "छोड़ें",
+    "back": "वापस",
+    "next": "आगे",
+    "save": "सेव करें",
+    "cancel": "रद्द करें",
+    "continue": "आगे बढ़ें",
+    "close": "बंद करें",
+    "retry": "फिर से कोशिश करें",
+    "notAvailable": "उपलब्ध नहीं",
+    "perLiter": "प्रति लीटर",
+    "liters": "ली",
+    "perDay": "/ दिन"
+  },
+  "lang": {
+    "label": "भाषा",
+    "english": "English",
+    "hindi": "हिंदी",
+    "punjabi": "पंजाबी"
+  },
+  "roles": {
+    "customer": "कस्टमर",
+    "admin": "एडमिन",
+    "vendor": "वेंडर"
+  },
+  "auth": {
+    "eyebrow": "सुरक्षित लॉगिन",
+    "title": "अपना खाता खोलें",
+    "description": "जारी रखने के लिए अपने रजिस्टर्ड मोबाइल नंबर से लॉगिन करें।",
+    "mobile": "मोबाइल नंबर",
+    "mobilePlaceholder": "10 अंकों का नंबर",
+    "password": "पासवर्ड",
+    "passwordPlaceholder": "पासवर्ड दर्ज करें",
+    "submit": "लॉगिन",
+    "forgot": "पासवर्ड भूल गए?"
+  },
+  "home": {
+    "hero": {
+      "eyebrow": "कल · 6:00 AM",
+      "title": "हर सुबह ताज़ा दूध आपके दरवाज़े पर",
+      "subtitle": "आपकी शेड्यूल्ड डिलीवरी रास्ते में है।",
+      "pause": "रोकें",
+      "track": "ट्रैक करें"
+    },
+    "quickActions": "क्विक एक्शन्स",
+    "subscribe": "सब्सक्राइब",
+    "schedule": "शेड्यूल",
+    "topUp": "टॉप अप",
+    "history": "हिस्ट्री",
+    "subscriptions": "आपकी सब्सक्रिप्शन्स",
+    "greeting": "नमस्ते, {name}",
+    "location": "डिलीवरी पता"
+  },
+  "nav": {
+    "home": "होम",
+    "plans": "प्लान्स",
+    "calendar": "कैलेंडर",
+    "wallet": "वॉलेट",
+    "billing": "बिलिंग",
+    "history": "हिस्ट्री",
+    "profile": "प्रोफाइल",
+    "dashboard": "डैशबोर्ड",
+    "customers": "कस्टमर्स",
+    "deliveries": "डिलीवरी",
+    "reports": "रिपोर्ट्स",
+    "newPlan": "नया प्लान"
+  },
+  "status": {
+    "active": "एक्टिव",
+    "paused": "रोका गया",
+    "delivered": "डिलीवर्ड",
+    "skipped": "स्किप",
+    "pending": "पेंडिंग",
+    "today": "आज"
+  },
+  "dashboard": {
+    "title": "मेरा डैशबोर्ड",
+    "subtitle": "आपकी दूध योजना, हाल की डिलीवरी और भुगतान की स्थिति।",
+    "dailyPlan": "दैनिक प्लान",
+    "thisMonth": "इस महीने",
+    "monthHint": "डिलीवर हुए दूध और add-ons का कुल बिल",
+    "pendingDue": "बकाया",
+    "todaysStatus": "आज का स्टेटस",
+    "deliveryStatus": "डिलीवरी स्टेटस: {status}",
+    "planLine": "आपकी योजना {plan} है। इस महीने का बिल: {billed}। बकाया: {due}।",
+    "lastUpdate": "आखिरी अपडेट",
+    "noUpdate": "अभी कोई अपडेट नहीं",
+    "nextDelivery": "अगली डिलीवरी कल",
+    "noCustomer": "अभी कोई कस्टमर रिकॉर्ड उपलब्ध नहीं है।",
+    "noCustomerTitle": "मेरा डैशबोर्ड",
+    "noCustomerSubtitle": "जब कस्टमर डेटा उपलब्ध होगा तब summary यहाँ दिखेगी।"
+  },
+  "calendar": {
+    "title": "मेरा कैलेंडर",
+    "subtitle": "दिनवार दूध खपत, छूटे हुए दिन और मासिक अनुमान देखें।",
+    "monthlyLiters": "मासिक लीटर",
+    "routeSummary": "{area} रूट सारांश",
+    "deliveredDays": "डिलीवर्ड दिन",
+    "skippedPaused": "{skipped} स्किप · {paused} रोका गया",
+    "estimatedBill": "अनुमानित बिल",
+    "estimateHint": "डिलीवर खपत और add-ons के आधार पर अनुमान",
+    "headline": "खपत कैलेंडर",
+    "headlineHint": "{month} में आपके दूध प्लान की दैनिक एंट्रीज़।",
+    "legend": {
+      "delivered": "डिलीवर्ड",
+      "paused": "रोका गया",
+      "skipped": "स्किप"
+    },
+    "avgPerDay": "एक्टिव दिन का औसत",
+    "pausedDays": "रोके गए दिन",
+    "pausedCount": "इस महीने {count}",
+    "billingRate": "बिलिंग रेट",
+    "perLiter": "{amount} प्रति लीटर",
+    "addOns": "{count} add-ons",
+    "noData": "अभी कोई कैलेंडर डेटा उपलब्ध नहीं है।",
+    "emptySubtitle": "जब डिलीवरी डेटा उपलब्ध होगा तब कैलेंडर यहाँ दिखेगा।"
+  },
+  "billing": {
+    "title": "मेरा बिल",
+    "subtitle": "वर्तमान महीने की बिलिंग और बकाया राशि।",
+    "monthlyBill": "मासिक बिल",
+    "amountPaid": "चुकाई गई राशि",
+    "pendingDue": "बकाया",
+    "recentAddOns": "हाल के बिलिंग एड-ऑन्स",
+    "noAddOns": "इस महीने कोई add-on बिल नहीं हुआ।"
+  },
+  "history": {
+    "title": "डिलीवरी हिस्ट्री",
+    "subtitle": "हाल की डिलीवरी, अतिरिक्त दूध और add-on देखें।",
+    "extra": "अतिरिक्त {amount} ली",
+    "addOnsLabel": "एड-ऑन्स:",
+    "empty": "अभी कोई डिलीवरी हिस्ट्री नहीं।"
+  },
+  "profile": {
+    "title": "मेरा प्रोफाइल",
+    "subtitle": "आपकी संपर्क जानकारी और डिलीवरी पता।",
+    "name": "नाम",
+    "phone": "फ़ोन",
+    "address": "पता",
+    "area": "एरिया",
+    "preferredLanguage": "पसंदीदा भाषा",
+    "signOut": "साइन आउट"
+  },
+  "landing": {
+    "eyebrow": "मिल्कमैन",
+    "title": "दूध डिलीवरी मैनेजमेंट के लिए बहुभाषी स्टार्टर",
+    "description": "रेस्पॉन्सिव एडमिन और कस्टमर पैनल्स, MongoDB आधार और INR-फ्रेंडली बिलिंग फ्लो।",
+    "openAdmin": "एडमिन खोलें",
+    "customerView": "कस्टमर व्यू",
+    "quickRoutes": "क्विक रूट्स",
+    "starterStatus": "स्टार्टर स्टेटस",
+    "statusItems": {
+      "shell": "रेस्पॉन्सिव एडमिन शेल तैयार",
+      "locales": "English, Hindi और Punjabi मैसेज फ़ाइलें",
+      "mongo": "MongoDB कनेक्शन हेल्पर और मॉडल्स",
+      "skeletons": "कस्टमर और एडमिन स्केलेटन पेज तैयार"
+    }
+  }
 }

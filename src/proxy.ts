@@ -10,5 +10,5 @@ const proxy = createMiddleware({
 export default proxy;
 
 export const config = {
-  matcher: ["/", "/(en|hi)/:path*"],
+  matcher: ["/", "/(en|hi|pa)/:path*"],
 };

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { setRequestLocale } from "next-intl/server";
-import { SectionHeading } from "@/components/layout/section-heading";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import { ArrowRight, LayoutDashboard, UserCircle } from "lucide-react";
 
 type LocaleHomePageProps = {
   params: Promise<{ locale: string }>;
@@ -9,41 +9,87 @@ type LocaleHomePageProps = {
 export default async function LocaleHomePage({ params }: LocaleHomePageProps) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const t = await getTranslations({ locale });
 
   return (
-    <main className="public-shell min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <section className="public-panel rounded-[32px] p-6 sm:p-8">
-          <SectionHeading
-            eyebrow={locale === "hi" ? "मिल्कमैन" : "Milkman"}
-            title={
-              locale === "hi"
-                ? "दूध डिलीवरी मैनेजमेंट के लिए bilingual starter"
-                : "Bilingual starter for milk delivery management"
-            }
-            description={
-              locale === "hi"
-                ? "एडमिन और कस्टमर दोनों के लिए responsive panels, MongoDB foundation, और INR-friendly billing flow."
-                : "Responsive admin and customer panels, MongoDB foundation, and an INR-friendly billing flow."
-            }
-          />
-
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Link
-              href={`/${locale}/admin/dashboard`}
-              className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-primary-strong"
-            >
-              {locale === "hi" ? "एडमिन खोलें" : "Open Admin"}
-            </Link>
-            <Link
-              href={`/${locale}/customer/dashboard`}
-              className="rounded-full border border-border bg-white px-5 py-3 text-sm font-semibold"
-            >
-              {locale === "hi" ? "कस्टमर व्यू" : "Customer View"}
-            </Link>
+    <main className="app-shell-main">
+      <div className="app-header">
+        <div>
+          <div className="eyebrow">{t("landing.eyebrow")}</div>
+          <div className="title">{t("landing.title")}</div>
+          <div className="subtitle" style={{ marginTop: 6 }}>
+            {t("landing.description")}
           </div>
-        </section>
+        </div>
       </div>
+
+      <div className="stack gap-3 mt-3">
+        <Link href={`/${locale}/customer/dashboard`} className="card">
+          <div className="card-row">
+            <div className="thumb">
+              <UserCircle className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <div className="card-title">{t("landing.customerView")}</div>
+              <div className="card-sub">{t("nav.dashboard")} · {t("nav.calendar")}</div>
+            </div>
+            <ArrowRight
+              className="h-5 w-5"
+              style={{ color: "var(--ink-400)" }}
+              aria-hidden="true"
+            />
+          </div>
+        </Link>
+
+        <Link href={`/${locale}/admin/dashboard`} className="card">
+          <div className="card-row">
+            <div className="thumb sun">
+              <LayoutDashboard className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <div className="card-title">{t("landing.openAdmin")}</div>
+              <div className="card-sub">
+                {t("nav.customers")} · {t("nav.deliveries")} · {t("nav.reports")}
+              </div>
+            </div>
+            <ArrowRight
+              className="h-5 w-5"
+              style={{ color: "var(--ink-400)" }}
+              aria-hidden="true"
+            />
+          </div>
+        </Link>
+      </div>
+
+      <div className="section-head">
+        <h3>{t("landing.starterStatus")}</h3>
+      </div>
+      <ul className="stack gap-2" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        <li className="list-item">
+          <span className="status-dot mint" style={{ marginLeft: 4 }} />
+          <div className="meta">
+            <strong>{t("landing.statusItems.shell")}</strong>
+          </div>
+        </li>
+        <li className="list-item">
+          <span className="status-dot mint" style={{ marginLeft: 4 }} />
+          <div className="meta">
+            <strong>{t("landing.statusItems.locales")}</strong>
+          </div>
+        </li>
+        <li className="list-item">
+          <span className="status-dot mint" style={{ marginLeft: 4 }} />
+          <div className="meta">
+            <strong>{t("landing.statusItems.mongo")}</strong>
+          </div>
+        </li>
+        <li className="list-item">
+          <span className="status-dot mint" style={{ marginLeft: 4 }} />
+          <div className="meta">
+            <strong>{t("landing.statusItems.skeletons")}</strong>
+          </div>
+        </li>
+      </ul>
     </main>
   );
 }

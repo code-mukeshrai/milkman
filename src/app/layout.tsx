@@ -1,10 +1,25 @@
 import type { Metadata } from "next";
-import { Noto_Sans, Noto_Sans_Mono } from "next/font/google";
+import {
+  Noto_Sans,
+  Noto_Sans_Mono,
+  Noto_Sans_Gurmukhi,
+} from "next/font/google";
+import { getLocale } from "next-intl/server";
 import "./globals.css";
 
+// Primary UI font — covers Latin + Devanagari.
 const notoSans = Noto_Sans({
   variable: "--font-sans",
-  subsets: ["latin"],
+  subsets: ["latin", "devanagari"],
+  weight: ["400", "500", "600", "700", "800"],
+});
+
+// Gurmukhi (ਪੰਜਾਬੀ) glyph support. Loaded via a separate CSS variable
+// that we include in the font stack so Gurmukhi characters always have
+// a matching glyph.
+const notoSansGurmukhi = Noto_Sans_Gurmukhi({
+  variable: "--font-gurmukhi",
+  subsets: ["gurmukhi", "latin"],
   weight: ["400", "500", "600", "700"],
 });
 
@@ -19,15 +34,16 @@ export const metadata: Metadata = {
   description: "Milk delivery management app for Indian sellers",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
   return (
     <html
-      lang="en"
-      className={`${notoSans.variable} ${notoSansMono.variable} h-full antialiased`}
+      lang={locale}
+      className={`${notoSans.variable} ${notoSansGurmukhi.variable} ${notoSansMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

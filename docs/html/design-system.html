@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dairly — Design System</title>
+<link rel="stylesheet" href="styles.css"/>
+<style>
+  body { padding: 40px 28px 80px; max-width: 1100px; margin: 0 auto; }
+  .ds-hero { margin-bottom: 40px; }
+  .ds-hero h1 { font-size: 44px; letter-spacing: -0.03em; margin: 0 0 8px; }
+  .ds-hero p { color: var(--ink-500); font-size: 16px; max-width: 620px; }
+  .ds-section { margin-top: 48px; }
+  .ds-section h2 {
+    font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-400); margin: 0 0 16px; font-weight: 800;
+  }
+  .ds-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  .swatch {
+    border-radius: 18px; padding: 16px; background: var(--surface);
+    box-shadow: var(--shadow-sm); overflow: hidden;
+  }
+  .swatch .sw { height: 80px; border-radius: 12px; margin-bottom: 10px; }
+  .swatch .name { font-weight: 800; font-size: 13px; }
+  .swatch .hex { font-size: 11px; color: var(--ink-400); font-family: ui-monospace, monospace; }
+  .type-row {
+    background: var(--surface); padding: 16px; border-radius: 14px;
+    box-shadow: var(--shadow-sm); display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .type-row .meta { font-size: 11px; color: var(--ink-400); font-family: ui-monospace, monospace; }
+  .component-row {
+    background: var(--surface); padding: 20px; border-radius: 18px;
+    box-shadow: var(--shadow-sm); margin-bottom: 12px;
+    display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+  }
+  .component-row .label { font-size: 12px; color: var(--ink-400); font-weight: 700; min-width: 120px; }
+  .space-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; background: var(--surface); border-radius: 10px;
+    box-shadow: var(--shadow-sm); margin-bottom: 6px;
+  }
+  .space-row .bar { height: 10px; background: var(--brand); border-radius: 2px; }
+  .space-row .n { font-family: ui-monospace, monospace; font-size: 12px; color: var(--ink-500); min-width: 80px; }
+</style>
+</head>
+<body>
+
+<div class="ds-hero">
+  <div class="brand" style="color:var(--brand); margin-bottom: 20px">
+    <svg viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2h8v4l3 6c1 2 1 4 1 6v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V18c0-2 0-4 1-6l3-6V2z"/>
+      <path d="M11 14h10"/>
+    </svg>
+    <div class="brand-text">
+      <span class="brand-name" style="font-size:20px">Dairly Design System</span>
+      <span class="brand-tagline">v1.0 · Mobile-first milk delivery platform</span>
+    </div>
+  </div>
+  <h1>Fresh, frictionless, familiar.</h1>
+  <p>A compact design language built for habit-driven daily commerce. Calm surfaces, decisive typography, and a milk-inspired palette that signals trust and freshness at a glance.</p>
+  <div class="row gap-2 mt-4">
+    <a class="btn btn-primary btn-sm" href="index.html">View App Gallery</a>
+    <a class="btn btn-ghost btn-sm" href="#components">Browse Components</a>
+  </div>
+</div>
+
+<section class="ds-section">
+  <h2>Color · Brand</h2>
+  <div class="ds-grid">
+    <div class="swatch"><div class="sw" style="background:#2563EB"></div><div class="name">Brand Blue</div><div class="hex">#2563EB · Trust</div></div>
+    <div class="swatch"><div class="sw" style="background:#10B981"></div><div class="name">Mint Fresh</div><div class="hex">#10B981 · Success</div></div>
+    <div class="swatch"><div class="sw" style="background:#F5B301"></div><div class="name">Dairy Sun</div><div class="hex">#F5B301 · Energy</div></div>
+    <div class="swatch"><div class="sw" style="background:#F43F5E"></div><div class="name">Signal Rose</div><div class="hex">#F43F5E · Alert</div></div>
+  </div>
+</section>
+
+<section class="ds-section">
+  <h2>Color · Neutrals</h2>
+  <div class="ds-grid">
+    <div class="swatch"><div class="sw" style="background:#FFFFFF;border:1px solid var(--border)"></div><div class="name">Milk 50</div><div class="hex">#FFFFFF</div></div>
+    <div class="swatch"><div class="sw" style="background:#F8FAFC"></div><div class="name">Milk 100</div><div class="hex">#F8FAFC</div></div>
+    <div class="swatch"><div class="sw" style="background:#EEF2F7"></div><div class="name">Milk 200</div><div class="hex">#EEF2F7</div></div>
+    <div class="swatch"><div class="sw" style="background:#9AA3B8"></div><div class="name">Ink 300</div><div class="hex">#9AA3B8</div></div>
+    <div class="swatch"><div class="sw" style="background:#4A5773"></div><div class="name">Ink 500</div><div class="hex">#4A5773</div></div>
+    <div class="swatch"><div class="sw" style="background:#0B1220"></div><div class="name">Ink 900</div><div class="hex">#0B1220</div></div>
+  </div>
+</section>
+
+<section class="ds-section">
+  <h2>Typography · Inter / Poppins</h2>
+  <div class="type-row"><div style="font-size:44px;font-weight:800;letter-spacing:-0.03em">Display</div><div class="meta">44 / 800 / -3%</div></div>
+  <div class="type-row"><div style="font-size:28px;font-weight:800;letter-spacing:-0.02em">Headline</div><div class="meta">28 / 800</div></div>
+  <div class="type-row"><div style="font-size:20px;font-weight:800;letter-spacing:-0.02em">Title</div><div class="meta">20 / 800</div></div>
+  <div class="type-row"><div style="font-size:15px;font-weight:700">Subhead</div><div class="meta">15 / 700</div></div>
+  <div class="type-row"><div style="font-size:14px">Body — Fresh milk, delivered every morning.</div><div class="meta">14 / 400</div></div>
+  <div class="type-row"><div style="font-size:12px;color:var(--ink-400)">Caption / meta text</div><div class="meta">12 / 400</div></div>
+  <div class="type-row"><div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-400)">EYEBROW</div><div class="meta">11 / 800 · upper</div></div>
+</section>
+
+<section class="ds-section">
+  <h2>Spacing Scale · 4px base</h2>
+  <div class="space-row"><span class="n">--s-1 · 4</span><div class="bar" style="width:4px"></div></div>
+  <div class="space-row"><span class="n">--s-2 · 8</span><div class="bar" style="width:8px"></div></div>
+  <div class="space-row"><span class="n">--s-3 · 12</span><div class="bar" style="width:12px"></div></div>
+  <div class="space-row"><span class="n">--s-4 · 16</span><div class="bar" style="width:16px"></div></div>
+  <div class="space-row"><span class="n">--s-5 · 20</span><div class="bar" style="width:20px"></div></div>
+  <div class="space-row"><span class="n">--s-6 · 24</span><div class="bar" style="width:24px"></div></div>
+  <div class="space-row"><span class="n">--s-8 · 32</span><div class="bar" style="width:32px"></div></div>
+  <div class="space-row"><span class="n">--s-10 · 40</span><div class="bar" style="width:40px"></div></div>
+</section>
+
+<section class="ds-section" id="components">
+  <h2>Components · Buttons</h2>
+  <div class="component-row">
+    <span class="label">Primary</span>
+    <button class="btn btn-primary">Continue</button>
+    <button class="btn btn-brand">Start Plan</button>
+    <button class="btn btn-ghost">Secondary</button>
+    <button class="btn btn-primary btn-sm">Compact</button>
+  </div>
+</section>
+
+<section class="ds-section">
+  <h2>Components · Chips & Status</h2>
+  <div class="component-row">
+    <span class="label">Chips</span>
+    <span class="chip">Default</span>
+    <span class="chip brand">Brand</span>
+    <span class="chip mint"><span class="status-dot mint"></span>Delivered</span>
+    <span class="chip sun"><span class="status-dot sun"></span>Paused</span>
+    <span class="chip rose"><span class="status-dot rose"></span>Skipped</span>
+  </div>
+</section>
+
+<section class="ds-section">
+  <h2>Components · Cards</h2>
+  <div class="ds-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">
+    <div class="card">
+      <div class="card-row">
+        <div class="thumb">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4v3l2 4v10a2 2 0 01-2 2H10a2 2 0 01-2-2V9l2-4V2z"/><path d="M9 11h6"/></svg>
+        </div>
+        <div class="flex-1">
+          <div class="row between">
+            <div class="card-title">Daily Cow Milk</div>
+            <span class="chip mint"><span class="status-dot mint"></span>Active</span>
+          </div>
+          <div class="card-sub">1 L · 6:00 AM · ₹62 / day</div>
+        </div>
+      </div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Today Earnings</div>
+      <div class="stat-value">₹3,480</div>
+      <div class="trend up"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg> +12%</div>
+    </div>
+  </div>
+</section>
+
+<section class="ds-section">
+  <h2>Principles</h2>
+  <div class="ds-grid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">
+    <div class="card"><div class="card-title">Habit-first UX</div><div class="card-sub mt-2">Daily actions surface one tap away. Pause, resume, track — zero friction.</div></div>
+    <div class="card"><div class="card-title">Quiet surfaces</div><div class="card-sub mt-2">Soft neutrals, decisive ink. Color is reserved for meaning, not decoration.</div></div>
+    <div class="card"><div class="card-title">Numeric clarity</div><div class="card-sub mt-2">Prices, quantities and schedules use tabular weight so amounts scan fast.</div></div>
+    <div class="card"><div class="card-title">Progressive disclosure</div><div class="card-sub mt-2">Cards expand to detail. Lists stay short. Complexity hides behind intent.</div></div>
+  </div>
+</section>
+
+</body>
+</html>

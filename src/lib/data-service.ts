@@ -402,9 +402,9 @@ export async function getDashboardData() {
           total +
           (entry.todayDelivery?.status === "DELIVERED"
             ? entry.todayDelivery.finalQuantity ??
-              entry.todayDelivery.quantityDelivered ??
-              entry.activePlan?.quantityLiters ??
-              0
+            entry.todayDelivery.quantityDelivered ??
+            entry.activePlan?.quantityLiters ??
+            0
             : 0),
         0,
       ),
@@ -517,9 +517,9 @@ export async function getAreaAnalyticsData() {
           total +
           (entry.todayDelivery?.status === "DELIVERED"
             ? entry.todayDelivery.finalQuantity ??
-              entry.todayDelivery.quantityDelivered ??
-              entry.activePlan?.quantityLiters ??
-              0
+            entry.todayDelivery.quantityDelivered ??
+            entry.activePlan?.quantityLiters ??
+            0
             : 0),
         0,
       ),
@@ -748,7 +748,15 @@ export async function getVendorsData() {
       .reduce((total, entry) => total + entry.quantity, 0);
 
     return {
-      ...vendor,
+      _id: String(vendor._id),
+      code: vendor.code,
+      name: vendor.name,
+      phone: vendor.phone ?? "",
+      areaCode: vendor.areaCode ?? "",
+      areaName: vendor.areaName ?? "",
+      notes: vendor.notes ?? "",
+      isActive: vendor.isActive ?? true,
+      sortOrder: vendor.sortOrder ?? 0,
       purchaseCount: entries.length,
       totalPurchaseAmount,
       totalMilkInward,

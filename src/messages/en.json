@@ -1,15 +1,166 @@
 {
-  "appName": "Milkman",
-  "tagline": "Milk delivery and billing management",
-  "admin": "Admin",
-  "customer": "Customer",
-  "dashboard": "Dashboard",
-  "customers": "Customers",
-  "deliveries": "Deliveries",
-  "billing": "Billing",
-  "reports": "Reports",
-  "todayOverview": "Today's overview",
-  "quickActions": "Quick actions",
-  "viewAll": "View all",
-  "login": "Login"
+  "brand": {
+    "name": "Dairly",
+    "tagline": "Fresh Milk, Every Morning"
+  },
+  "common": {
+    "appName": "Milkman",
+    "viewAll": "View all",
+    "skip": "Skip",
+    "back": "Back",
+    "next": "Next",
+    "save": "Save",
+    "cancel": "Cancel",
+    "continue": "Continue",
+    "close": "Close",
+    "retry": "Retry",
+    "notAvailable": "Not available",
+    "perLiter": "per liter",
+    "liters": "L",
+    "perDay": "/ day"
+  },
+  "lang": {
+    "label": "Language",
+    "english": "English",
+    "hindi": "Hindi",
+    "punjabi": "Punjabi"
+  },
+  "roles": {
+    "customer": "Customer",
+    "admin": "Admin",
+    "vendor": "Vendor"
+  },
+  "auth": {
+    "eyebrow": "Secure login",
+    "title": "Access your account",
+    "description": "Sign in with your registered mobile number to continue.",
+    "mobile": "Mobile number",
+    "mobilePlaceholder": "10-digit number",
+    "password": "Password",
+    "passwordPlaceholder": "Enter password",
+    "submit": "Login",
+    "forgot": "Forgot password?"
+  },
+  "home": {
+    "hero": {
+      "eyebrow": "Tomorrow · 6:00 AM",
+      "title": "Fresh milk, delivered every morning",
+      "subtitle": "Your scheduled delivery is on the way.",
+      "pause": "Pause",
+      "track": "Track"
+    },
+    "quickActions": "Quick Actions",
+    "subscribe": "Subscribe",
+    "schedule": "Schedule",
+    "topUp": "Top Up",
+    "history": "History",
+    "subscriptions": "Your Subscriptions",
+    "greeting": "Hey, {name}",
+    "location": "Delivery address"
+  },
+  "nav": {
+    "home": "Home",
+    "plans": "Plans",
+    "calendar": "Calendar",
+    "wallet": "Wallet",
+    "billing": "Billing",
+    "history": "History",
+    "profile": "Profile",
+    "dashboard": "Dashboard",
+    "customers": "Customers",
+    "deliveries": "Deliveries",
+    "reports": "Reports",
+    "newPlan": "New plan"
+  },
+  "status": {
+    "active": "Active",
+    "paused": "Paused",
+    "delivered": "Delivered",
+    "skipped": "Skipped",
+    "pending": "Pending",
+    "today": "Today"
+  },
+  "dashboard": {
+    "title": "My Dashboard",
+    "subtitle": "Your milk plan, recent deliveries, and payment status.",
+    "dailyPlan": "Daily plan",
+    "thisMonth": "This month",
+    "monthHint": "Actual bill from delivered milk and add-ons",
+    "pendingDue": "Pending due",
+    "todaysStatus": "Today's Status",
+    "deliveryStatus": "Delivery status: {status}",
+    "planLine": "Your plan is {plan}. Billed this month: {billed}. Pending: {due}.",
+    "lastUpdate": "Last update",
+    "noUpdate": "No update yet",
+    "nextDelivery": "Next delivery tomorrow",
+    "noCustomer": "No customer record is available yet.",
+    "noCustomerTitle": "My Dashboard",
+    "noCustomerSubtitle": "Your summary will appear here once customer data is available."
+  },
+  "calendar": {
+    "title": "My Calendar",
+    "subtitle": "See day-wise milk consumption, skipped days, and your monthly estimate.",
+    "monthlyLiters": "Monthly liters",
+    "routeSummary": "{area} route summary",
+    "deliveredDays": "Delivered days",
+    "skippedPaused": "{skipped} skipped · {paused} paused",
+    "estimatedBill": "Estimated bill",
+    "estimateHint": "Projected from delivered consumption and add-ons",
+    "headline": "Consumption calendar",
+    "headlineHint": "Daily entries for your milk plan in {month}.",
+    "legend": {
+      "delivered": "Delivered",
+      "paused": "Paused",
+      "skipped": "Skipped"
+    },
+    "avgPerDay": "Average per active day",
+    "pausedDays": "Paused days",
+    "pausedCount": "{count} this month",
+    "billingRate": "Billing rate",
+    "perLiter": "{amount} per liter",
+    "addOns": "{count} add-ons",
+    "noData": "No calendar data is available yet.",
+    "emptySubtitle": "Your calendar will appear here once delivery data is available."
+  },
+  "billing": {
+    "title": "My Billing",
+    "subtitle": "Current month billing summary and pending due.",
+    "monthlyBill": "Monthly bill",
+    "amountPaid": "Amount paid",
+    "pendingDue": "Pending due",
+    "recentAddOns": "Recent billable add-ons",
+    "noAddOns": "No add-on products billed this month."
+  },
+  "history": {
+    "title": "Delivery History",
+    "subtitle": "Review recent delivery entries, extra milk, and add-on items.",
+    "extra": "Extra {amount} L",
+    "addOnsLabel": "Add-ons:",
+    "empty": "No delivery history yet."
+  },
+  "profile": {
+    "title": "My Profile",
+    "subtitle": "Your contact information and delivery address.",
+    "name": "Name",
+    "phone": "Phone",
+    "address": "Address",
+    "area": "Area",
+    "preferredLanguage": "Preferred language",
+    "signOut": "Sign out"
+  },
+  "landing": {
+    "eyebrow": "Milkman",
+    "title": "Multilingual starter for milk delivery management",
+    "description": "Responsive admin and customer panels, MongoDB foundation, and an INR-friendly billing flow.",
+    "openAdmin": "Open Admin",
+    "customerView": "Customer View",
+    "quickRoutes": "Quick Routes",
+    "starterStatus": "Starter Status",
+    "statusItems": {
+      "shell": "Responsive admin shell prepared",
+      "locales": "English, Hindi, and Punjabi message files",
+      "mongo": "MongoDB connection helper and models included",
+      "skeletons": "Customer and admin skeleton pages ready"
+    }
+  }
 }

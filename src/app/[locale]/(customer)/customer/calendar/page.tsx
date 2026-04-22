@@ -1,7 +1,7 @@
 import { CalendarClock, CircleDollarSign, Droplets } from "lucide-react";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { MonthGrid } from "@/components/calendar/month-grid";
 import { CustomerShell } from "@/components/layout/customer-shell";
-import { MetricCard } from "@/components/layout/metric-card";
 import { getCustomerCalendarData } from "@/lib/data-service";
 import { formatCurrencyINR } from "@/lib/utils";
 
@@ -13,21 +13,21 @@ export default async function CustomerCalendarPage({
   params,
 }: CustomerCalendarPageProps) {
   const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations({ locale });
   const calendar = await getCustomerCalendarData();
 
   if (!calendar) {
     return (
-      <CustomerShell
-        locale={locale}
-        title={locale === "hi" ? "मेरा कैलेंडर" : "My Calendar"}
-        subtitle={
-          locale === "hi"
-            ? "जब delivery data उपलब्ध होगा तब calendar यहाँ दिखेगा."
-            : "Your calendar will appear here once delivery data is available."
-        }
-      >
-        <section className="public-panel rounded-[28px] p-5 text-sm text-muted">
-          No calendar data is available yet.
+      <CustomerShell locale={locale}>
+        <div className="app-header">
+          <div>
+            <div className="title">{t("calendar.title")}</div>
+            <div className="subtitle">{t("calendar.emptySubtitle")}</div>
+          </div>
+        </div>
+        <section className="card">
+          <p className="card-sub">{t("calendar.noData")}</p>
         </section>
       </CustomerShell>
     );
@@ -36,109 +36,122 @@ export default async function CustomerCalendarPage({
   const { customer, monthMeta, days, summary } = calendar;
 
   return (
-    <CustomerShell
-      locale={locale}
-      title={locale === "hi" ? "मेरा कैलेंडर" : "My Calendar"}
-      subtitle={
-        locale === "hi"
-          ? "दिनवार दूध consumption, skipped days और monthly estimate देखें."
-          : "See day-wise milk consumption, skipped days, and your monthly estimate."
-      }
-    >
-      <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard
-          label="Monthly liters"
-          value={`${summary.totalLiters.toFixed(1)} L`}
-          hint={`${customer.areaName} route summary`}
-        />
-        <MetricCard
-          label="Delivered days"
-          value={`${summary.deliveredDays}`}
-          hint={`${summary.skippedDays} skipped • ${summary.pausedDays} paused`}
-        />
-        <MetricCard
-          label="Estimated bill"
-          value={formatCurrencyINR(summary.estimatedBill)}
-          hint="Projected from delivered consumption and add-ons"
-        />
+    <CustomerShell locale={locale}>
+      <div className="app-header">
+        <div>
+          <div className="title">{t("calendar.title")}</div>
+          <div className="subtitle">{t("calendar.subtitle")}</div>
+        </div>
       </div>
 
-      <section className="public-panel mt-4 rounded-[28px] p-5 sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">Consumption calendar</h2>
-            <p className="mt-1 text-sm text-muted">
-              Daily entries for your milk plan in {monthMeta.monthLabel}.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.12em]">
-            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">
-              Delivered
-            </span>
-            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-700">
-              Paused
-            </span>
-            <span className="rounded-full bg-rose-100 px-2.5 py-1 text-rose-700">
-              Skipped
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-5">
-          <MonthGrid
-            monthLabel={monthMeta.monthLabel}
-            leadingBlankSlots={monthMeta.leadingBlankSlots}
-            days={days}
-            variant="customer"
-            renderFooter={(day) => (
-              <>
-                <div>{day.dateLabel}</div>
-                <div>{day.itemCount} add-ons</div>
-              </>
-            )}
-          />
-        </div>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <article className="public-panel rounded-[28px] p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <Droplets className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">Average per active day</p>
-              <p className="mt-1 text-sm text-muted">
-                {(summary.totalLiters / Math.max(summary.deliveredDays, 1)).toFixed(1)} L
-              </p>
-            </div>
+      {/* Top stats row */}
+      <div className="stats-grid">
+        <article className="stat">
+          <div className="stat-label">{t("calendar.monthlyLiters")}</div>
+          <div className="stat-value">{summary.totalLiters.toFixed(1)} {t("common.liters")}</div>
+          <div className="trend up">
+            {t("calendar.routeSummary", { area: customer.areaName })}
           </div>
         </article>
-        <article className="public-panel rounded-[28px] p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <CalendarClock className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">Paused days</p>
-              <p className="mt-1 text-sm text-muted">{summary.pausedDays} this month</p>
-            </div>
+        <article className="stat">
+          <div className="stat-label">{t("calendar.deliveredDays")}</div>
+          <div className="stat-value">{summary.deliveredDays}</div>
+          <div className="trend">
+            {t("calendar.skippedPaused", {
+              skipped: summary.skippedDays,
+              paused: summary.pausedDays,
+            })}
           </div>
         </article>
-        <article className="public-panel rounded-[28px] p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+      </div>
+
+      <div className="mt-3">
+        <article className="card">
+          <div className="card-row">
+            <div className="thumb sun">
               <CircleDollarSign className="h-5 w-5" />
             </div>
-            <div>
-              <p className="text-sm font-semibold">Billing rate</p>
-              <p className="mt-1 text-sm text-muted">
-                {formatCurrencyINR(customer.rate)} per liter
-              </p>
+            <div className="flex-1">
+              <div className="card-title">{t("calendar.estimatedBill")}</div>
+              <div className="card-sub">{t("calendar.estimateHint")}</div>
             </div>
+            <div className="text-lg xbold">{formatCurrencyINR(summary.estimatedBill)}</div>
           </div>
         </article>
+      </div>
+
+      {/* Calendar */}
+      <div className="section-head">
+        <h3>{t("calendar.headline")}</h3>
+      </div>
+      <section className="card">
+        <div className="row between mb-3">
+          <div className="card-sub">
+            {t("calendar.headlineHint", { month: monthMeta.monthLabel })}
+          </div>
+          <div className="row gap-2 text-xs">
+            <span className="chip mint">
+              <span className="status-dot mint" />
+              {t("calendar.legend.delivered")}
+            </span>
+          </div>
+        </div>
+        <MonthGrid
+          monthLabel={monthMeta.monthLabel}
+          leadingBlankSlots={monthMeta.leadingBlankSlots}
+          days={days}
+          variant="customer"
+          showLegend={false}
+          renderFooter={(day) => (
+            <>
+              <div>{day.dateLabel}</div>
+              <div>{t("calendar.addOns", { count: day.itemCount ?? 0 })}</div>
+            </>
+          )}
+        />
+        <div className="row gap-2 mt-3" style={{ flexWrap: "wrap" }}>
+          <span className="chip mint"><span className="status-dot mint" />{t("calendar.legend.delivered")}</span>
+          <span className="chip sun"><span className="status-dot sun" />{t("calendar.legend.paused")}</span>
+          <span className="chip rose"><span className="status-dot rose" />{t("calendar.legend.skipped")}</span>
+        </div>
       </section>
+
+      {/* Secondary stats */}
+      <div className="section-head">
+        <h3>{t("calendar.avgPerDay")}</h3>
+      </div>
+      <article className="list-item">
+        <div className="thumb">
+          <Droplets className="h-5 w-5" />
+        </div>
+        <div className="meta">
+          <strong>{t("calendar.avgPerDay")}</strong>
+          <span>
+            {(summary.totalLiters / Math.max(summary.deliveredDays, 1)).toFixed(1)}{" "}
+            {t("common.liters")}
+          </span>
+        </div>
+      </article>
+      <article className="list-item">
+        <div className="thumb sun">
+          <CalendarClock className="h-5 w-5" />
+        </div>
+        <div className="meta">
+          <strong>{t("calendar.pausedDays")}</strong>
+          <span>{t("calendar.pausedCount", { count: summary.pausedDays })}</span>
+        </div>
+      </article>
+      <article className="list-item">
+        <div className="thumb mint">
+          <CircleDollarSign className="h-5 w-5" />
+        </div>
+        <div className="meta">
+          <strong>{t("calendar.billingRate")}</strong>
+          <span>
+            {t("calendar.perLiter", { amount: formatCurrencyINR(customer.rate) })}
+          </span>
+        </div>
+      </article>
     </CustomerShell>
   );
 }

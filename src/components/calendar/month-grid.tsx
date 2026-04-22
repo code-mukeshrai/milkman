@@ -7,6 +7,14 @@ type MonthGridProps = {
   days: CalendarDayRecord[];
   variant: "admin" | "customer";
   renderFooter?: (day: CalendarDayRecord) => React.ReactNode;
+  /**
+   * When true (default for admin), the component renders its built-in English
+   * legend. Customer calendar renders its own translated legend, so it passes
+   * `showLegend={false}`.
+   */
+  showLegend?: boolean;
+  /** Optional translated labels for the built-in legend. */
+  legendLabels?: { delivered: string; paused: string; skipped: string };
 };
 
 const weekLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -41,7 +49,15 @@ export function MonthGrid({
   days,
   variant,
   renderFooter,
+  showLegend = true,
+  legendLabels,
 }: MonthGridProps) {
+  const labels = legendLabels ?? {
+    delivered: "Delivered",
+    paused: "Paused",
+    skipped: "Skipped",
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -53,23 +69,25 @@ export function MonthGrid({
         >
           {monthLabel}
         </h2>
-        <div className="flex flex-wrap gap-2">
-          {[
-            ["Delivered", "bg-emerald-100 text-emerald-700"],
-            ["Paused", "bg-amber-100 text-amber-700"],
-            ["Skipped", "bg-rose-100 text-rose-700"],
-          ].map(([label, style]) => (
-            <span
-              key={label}
-              className={cn(
-                "rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]",
-                style,
-              )}
-            >
-              {label}
-            </span>
-          ))}
-        </div>
+        {showLegend ? (
+          <div className="flex flex-wrap gap-2">
+            {[
+              [labels.delivered, "bg-emerald-100 text-emerald-700"],
+              [labels.paused, "bg-amber-100 text-amber-700"],
+              [labels.skipped, "bg-rose-100 text-rose-700"],
+            ].map(([label, style]) => (
+              <span
+                key={label}
+                className={cn(
+                  "rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]",
+                  style,
+                )}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div

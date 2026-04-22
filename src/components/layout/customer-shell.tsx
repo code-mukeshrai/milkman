@@ -2,59 +2,83 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, History, Home, IndianRupee, User } from "lucide-react";
+import {
+  CalendarDays,
+  History,
+  Home,
+  IndianRupee,
+  Plus,
+  User,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 type CustomerShellProps = {
   children: React.ReactNode;
   locale: string;
-  title: string;
-  subtitle: string;
 };
 
-const navItems = [
-  { href: "dashboard", label: "Home", icon: Home },
-  { href: "calendar", label: "Calendar", icon: CalendarDays },
-  { href: "history", label: "History", icon: History },
-  { href: "billing", label: "Billing", icon: IndianRupee },
-  { href: "profile", label: "Profile", icon: User },
+type NavKey = "dashboard" | "calendar" | "billing" | "history" | "profile";
+
+type NavItem = {
+  key: NavKey;
+  href: string;
+  labelKey:
+    | "nav.home"
+    | "nav.calendar"
+    | "nav.billing"
+    | "nav.history"
+    | "nav.profile";
+  icon: typeof Home;
+  fab?: boolean;
+};
+
+const navItems: NavItem[] = [
+  { key: "dashboard", href: "dashboard", labelKey: "nav.home", icon: Home },
+  { key: "calendar", href: "calendar", labelKey: "nav.calendar", icon: CalendarDays },
+  { key: "billing", href: "billing", labelKey: "nav.billing", icon: IndianRupee, fab: true },
+  { key: "history", href: "history", labelKey: "nav.history", icon: History },
+  { key: "profile", href: "profile", labelKey: "nav.profile", icon: User },
 ];
 
-export function CustomerShell({
-  children,
-  locale,
-  title,
-  subtitle,
-}: CustomerShellProps) {
+export function CustomerShell({ children, locale }: CustomerShellProps) {
   const pathname = usePathname();
+  const t = useTranslations();
 
   return (
-    <div className="public-shell min-h-screen">
-      <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-4 px-3 py-4 sm:px-6 lg:px-8">
-        <header className="public-panel rounded-[30px] px-4 py-5 sm:px-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
-            Milkman Customer
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-[2rem]">{title}</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">{subtitle}</p>
-        </header>
-        <main className="flex-1">{children}</main>
-        <nav className="public-panel sticky bottom-3 grid grid-cols-5 gap-2 rounded-[28px] p-2">
-          {navItems.map(({ href, label, icon: Icon }) => (
+    <>
+      <main className="app-shell-main">{children}</main>
+      <nav className="bottom-nav" aria-label="Primary">
+        {navItems.map(({ key, href, labelKey, icon: Icon, fab }) => {
+          const target = `/${locale}/customer/${href}`;
+          const isActive = pathname === target;
+          if (fab) {
+            return (
+              <Link
+                key={key}
+                href={target}
+                className="nav-item"
+                aria-label={t(labelKey as never)}
+              >
+                <span className="nav-fab">
+                  <Plus className="h-5 w-5" />
+                </span>
+              </Link>
+            );
+          }
+          return (
             <Link
-              key={href}
-              href={`/${locale}/customer/${href}`}
-              className={cn(
-                "flex flex-col items-center gap-1 rounded-[22px] px-2 py-2 text-[11px] font-medium text-muted transition hover:bg-surface-muted hover:text-foreground",
-                pathname === `/${locale}/customer/${href}` && "public-nav-item-active",
-              )}
+              key={key}
+              href={target}
+              className={cn("nav-item", isActive && "active")}
+              aria-current={isActive ? "page" : undefined}
             >
-              <Icon className="h-4 w-4" />
-              {label}
+              <Icon className="h-5 w-5" aria-hidden="true" />
+              <span>{t(labelKey as never)}</span>
             </Link>
-          ))}
-        </nav>
-      </div>
-    </div>
+          );
+        })}
+      </nav>
+    </>
   );
 }
