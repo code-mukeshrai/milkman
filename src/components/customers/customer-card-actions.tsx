@@ -3,7 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BarChart2, Eye, FilePenLine, MoreVertical, PauseCircle, SkipForward, Truck } from "lucide-react";
+import {
+  ChartColumnBig,
+  CirclePause,
+  CircleSlash,
+  EllipsisVertical,
+  Eye,
+  PackageCheck,
+  SquarePen,
+} from "lucide-react";
 
 type CustomerCardActionsProps = {
   customerCode: string;
@@ -49,7 +57,7 @@ export function CustomerCardActions({ customerCode, locale }: CustomerCardAction
         disabled={loading !== null}
         className="admin-primary-button px-4 py-3 text-sm font-semibold disabled:opacity-60"
       >
-        <Truck className="h-4 w-4" />
+        <PackageCheck className="h-4 w-4" />
         {loading === "DELIVERED" ? "Saving…" : "Delivered"}
       </button>
 
@@ -60,7 +68,7 @@ export function CustomerCardActions({ customerCode, locale }: CustomerCardAction
         disabled={loading !== null}
         className="admin-secondary-button px-4 py-3 text-sm font-semibold disabled:opacity-60"
       >
-        <SkipForward className="h-4 w-4" />
+        <CircleSlash className="h-4 w-4" />
         {loading === "SKIPPED" ? "Saving…" : "Skipped"}
       </button>
 
@@ -71,7 +79,7 @@ export function CustomerCardActions({ customerCode, locale }: CustomerCardAction
         disabled={loading !== null}
         className="admin-outline-button px-4 py-3 text-sm font-semibold disabled:opacity-60"
       >
-        <PauseCircle className="h-4 w-4" />
+        <CirclePause className="h-4 w-4" />
         {loading === "PAUSED" ? "Saving…" : "Paused"}
       </button>
 
@@ -83,7 +91,7 @@ export function CustomerCardActions({ customerCode, locale }: CustomerCardAction
           className="admin-outline-button px-3 py-3 text-sm font-semibold"
           aria-label="More options"
         >
-          <MoreVertical className="h-4 w-4" />
+          <EllipsisVertical className="h-4 w-4" />
         </button>
 
         {menuOpen && (
@@ -101,7 +109,7 @@ export function CustomerCardActions({ customerCode, locale }: CustomerCardAction
               onClick={() => setMenuOpen(false)}
               className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] hover:bg-[var(--admin-panel-muted)] transition-colors"
             >
-              <BarChart2 className="h-4 w-4 text-[var(--admin-muted)]" />
+              <ChartColumnBig className="h-4 w-4 text-[var(--admin-muted)]" />
               Details
             </Link>
             <Link
@@ -109,7 +117,7 @@ export function CustomerCardActions({ customerCode, locale }: CustomerCardAction
               onClick={() => setMenuOpen(false)}
               className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] hover:bg-[var(--admin-panel-muted)] transition-colors"
             >
-              <FilePenLine className="h-4 w-4 text-[var(--admin-muted)]" />
+              <SquarePen className="h-4 w-4 text-[var(--admin-muted)]" />
               Edit
             </Link>
           </div>

@@ -2,19 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  BarChart2,
+  ChartColumnBig,
+  CirclePause,
+  CircleSlash,
+  EllipsisVertical,
   Eye,
-  FilePenLine,
-  MoreVertical,
-  PauseCircle,
   Plus,
   ShoppingCart,
-  SkipForward,
+  SquarePen,
   Store,
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import {
   AdminBadge,
   AdminButton,
@@ -121,7 +120,7 @@ function VendorCardActions({ vendor, onEdit }: VendorCardActionsProps) {
         disabled={loading !== null}
         className="admin-secondary-button px-4 py-3 text-sm font-semibold disabled:opacity-60"
       >
-        <SkipForward className="h-4 w-4" />
+        <CircleSlash className="h-4 w-4" />
         {loading === "skipped" ? "Saving…" : "Skipped"}
       </button>
 
@@ -132,7 +131,7 @@ function VendorCardActions({ vendor, onEdit }: VendorCardActionsProps) {
         disabled={loading !== null}
         className="admin-outline-button px-4 py-3 text-sm font-semibold disabled:opacity-60"
       >
-        <PauseCircle className="h-4 w-4" />
+        <CirclePause className="h-4 w-4" />
         {loading === "paused" ? "Saving…" : "Paused"}
       </button>
 
@@ -144,7 +143,7 @@ function VendorCardActions({ vendor, onEdit }: VendorCardActionsProps) {
           className="admin-outline-button px-3 py-3 text-sm font-semibold"
           aria-label="More options"
         >
-          <MoreVertical className="h-4 w-4" />
+          <EllipsisVertical className="h-4 w-4" />
         </button>
 
         {menuOpen && (
@@ -162,7 +161,7 @@ function VendorCardActions({ vendor, onEdit }: VendorCardActionsProps) {
               onClick={() => { setMenuOpen(false); }}
               className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] hover:bg-[var(--admin-panel-muted)] transition-colors"
             >
-              <BarChart2 className="h-4 w-4 text-[var(--admin-muted)]" />
+              <ChartColumnBig className="h-4 w-4 text-[var(--admin-muted)]" />
               Details
             </button>
             <button
@@ -170,7 +169,7 @@ function VendorCardActions({ vendor, onEdit }: VendorCardActionsProps) {
               onClick={() => { setMenuOpen(false); onEdit(vendor); }}
               className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] hover:bg-[var(--admin-panel-muted)] transition-colors"
             >
-              <FilePenLine className="h-4 w-4 text-[var(--admin-muted)]" />
+              <SquarePen className="h-4 w-4 text-[var(--admin-muted)]" />
               Edit
             </button>
           </div>
