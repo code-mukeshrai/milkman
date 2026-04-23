@@ -67,9 +67,9 @@ export default async function AdminCalendarPage({ params }: AdminCalendarPagePro
                 <div>{day.dateLabel}</div>
                 <div>
                   {t("dayFooter", {
-                    delivered: day.deliveredCount,
-                    paused: day.pausedCount,
-                    skipped: day.skippedCount,
+                    delivered: day.deliveredCount ?? 0,
+                    paused: day.pausedCount ?? 0,
+                    skipped: day.skippedCount ?? 0,
                   })}
                 </div>
               </>
