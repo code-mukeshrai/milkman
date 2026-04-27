@@ -18,6 +18,11 @@ const vendorSchema = new Schema(
       type: String,
       trim: true,
     },
+    defaultRate: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
     areaCode: {
       type: String,
       trim: true,

@@ -1,3 +1,4 @@
+import * as React from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -117,19 +118,21 @@ export function AdminField({ label, hint, children, className }: AdminFieldProps
   );
 }
 
-export function AdminInput(
-  props: React.InputHTMLAttributes<HTMLInputElement>,
-) {
+export const AdminInput = React.forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement>
+>(function AdminInput(props, ref) {
   return (
     <input
       {...props}
+      ref={ref}
       className={cn(
         "w-full rounded-[18px] border border-[var(--admin-border)] bg-white px-4 py-3 text-sm text-[var(--admin-text)] outline-none transition placeholder:text-[var(--admin-muted)] focus:border-[var(--admin-primary)] focus:ring-4 focus:ring-[rgba(59,130,246,0.12)]",
         props.className,
       )}
     />
   );
-}
+});
 
 export function AdminSelect(
   props: React.SelectHTMLAttributes<HTMLSelectElement>,

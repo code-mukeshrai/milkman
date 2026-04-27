@@ -1,49 +1,55 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { connectToDatabase } from "@/lib/db/connect";
+import { getDeliveryRunData } from "@/lib/data-service";
 import { CustomerProfile } from "@/models/customer-profile";
 import { Delivery } from "@/models/delivery";
+import { DeliveryException } from "@/models/delivery-exception";
 import { MilkPlan } from "@/models/milk-plan";
-import { Product } from "@/models/product";
-
-const deliveryItemSchema = z.object({
-  productCode: z.string().trim().min(1),
-  quantity: z.number().positive(),
-});
 
 const deliverySchema = z.object({
   customerCode: z.string().trim().min(1),
-  status: z.enum(["DELIVERED", "SKIPPED", "PAUSED"]),
+  type: z.enum(["DELIVERED", "SKIPPED", "PAUSED", "SKIP", "PAUSE"]).optional(),
+  status: z.enum(["DELIVERED", "SKIPPED", "PAUSED"]).optional(),
   extraQuantity: z.number().nonnegative().optional(),
   finalQuantity: z.number().nonnegative().optional(),
   note: z.string().trim().optional(),
-  items: z.array(deliveryItemSchema).optional(),
   date: z.string().trim().optional(),
+}).refine((value) => value.type || value.status, {
+  message: "Delivery status is required",
 });
 
-export async function GET() {
-  await connectToDatabase();
-  const deliveries = await Delivery.find().sort({ date: -1, createdAt: -1 }).lean();
-  return NextResponse.json({ deliveries });
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const status = searchParams.get("status") || "ALL";
+  const entries = await getDeliveryRunData({
+    date: searchParams.get("date") || undefined,
+    areaCode: searchParams.get("area") || undefined,
+    status:
+      status === "DELIVERED" || status === "SKIPPED" || status === "PAUSED" || status === "PENDING"
+        ? status
+        : "ALL",
+  });
+
+  return NextResponse.json({
+    entries,
+    counts: {
+      delivered: entries.filter((entry) => entry.status === "DELIVERED").length,
+      skipped: entries.filter((entry) => entry.status === "SKIPPED").length,
+      paused: entries.filter((entry) => entry.status === "PAUSED").length,
+      pending: entries.filter((entry) => entry.status === "PENDING").length,
+    },
+  });
 }
 
 export async function POST(request: Request) {
   try {
     await connectToDatabase();
     const payload = deliverySchema.parse(await request.json());
-    const [customer, plan] = await Promise.all([
-      CustomerProfile.findOne({ customerCode: payload.customerCode }).lean(),
-      CustomerProfile.findOne({ customerCode: payload.customerCode })
-        .lean()
-        .then((profile) =>
-          profile
-            ? MilkPlan.findOne({ customerId: profile._id, isActive: true }).sort({ startDate: -1 }).lean()
-            : null,
-        ),
-    ]);
+    const customer = await CustomerProfile.findOne({ customerCode: payload.customerCode }).lean();
 
-    if (!customer || !plan) {
-      return NextResponse.json({ error: "Customer or active milk plan not found" }, { status: 404 });
+    if (!customer) {
+      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     }
 
     const targetDate = payload.date ? new Date(payload.date) : new Date();
@@ -51,36 +57,23 @@ export async function POST(request: Request) {
     dayStart.setHours(0, 0, 0, 0);
     const dayEnd = new Date(targetDate);
     dayEnd.setHours(23, 59, 59, 999);
-
-    const products = payload.items?.length
-      ? await Product.find({ code: { $in: payload.items.map((item) => item.productCode) } }).lean()
-      : [];
-
-    const itemEntries = (payload.items || []).map((item) => {
-      const product = products.find((entry) => entry.code === item.productCode);
-
-      if (!product) {
-        throw new Error(`Product ${item.productCode} not found`);
-      }
-
-      return {
-        productId: product._id,
-        productCode: product.code,
-        productName: product.name,
-        category: product.category,
-        unit: product.unit,
-        quantity: item.quantity,
-        rate: product.defaultRate,
-        totalAmount: item.quantity * product.defaultRate,
-      };
-    });
-
-    const baseQuantity = plan.quantityLiters;
-    const extraQuantity = payload.extraQuantity ?? 0;
-    const finalQuantity =
-      payload.status === "DELIVERED"
-        ? payload.finalQuantity ?? baseQuantity + extraQuantity
-        : 0;
+    const requestedStatus = payload.type || payload.status;
+    if (!requestedStatus) {
+      return NextResponse.json({ error: "Delivery status is required" }, { status: 400 });
+    }
+    const status =
+      requestedStatus === "SKIP"
+        ? "SKIPPED"
+        : requestedStatus === "PAUSE"
+          ? "PAUSED"
+          : requestedStatus;
+    const activePlan = await MilkPlan.findOne({ customerId: customer._id, isActive: true })
+      .sort({ startDate: -1 })
+      .lean<{ quantityLiters?: number; pricePerLiter?: number } | null>();
+    const baseQuantity = activePlan?.quantityLiters || 0;
+    const extraQuantity = payload.extraQuantity || 0;
+    const quantity =
+      status === "DELIVERED" ? payload.finalQuantity ?? baseQuantity + extraQuantity : 0;
 
     const delivery =
       (await Delivery.findOne({
@@ -92,15 +85,34 @@ export async function POST(request: Request) {
         date: targetDate,
       });
 
-    delivery.status = payload.status;
+    delivery.status = status;
+    delivery.quantityDelivered = quantity;
     delivery.baseQuantity = baseQuantity;
     delivery.extraQuantity = extraQuantity;
-    delivery.finalQuantity = finalQuantity;
-    delivery.quantityDelivered = finalQuantity;
-    delivery.pricePerLiter = plan.pricePerLiter;
+    delivery.finalQuantity = quantity;
+    delivery.pricePerLiter = activePlan?.pricePerLiter || 0;
     delivery.note = payload.note || "";
-    delivery.items = itemEntries;
     await delivery.save();
+
+    if (status === "DELIVERED") {
+      await DeliveryException.deleteOne({
+        customerId: customer._id,
+        date: { $gte: dayStart, $lte: dayEnd },
+      });
+    } else {
+      const exception =
+        (await DeliveryException.findOne({
+          customerId: customer._id,
+          date: { $gte: dayStart, $lte: dayEnd },
+        })) ||
+        new DeliveryException({
+          customerId: customer._id,
+          date: targetDate,
+        });
+
+      exception.type = status === "PAUSED" ? "PAUSE" : "SKIP";
+      await exception.save();
+    }
 
     return NextResponse.json({ delivery });
   } catch (error) {

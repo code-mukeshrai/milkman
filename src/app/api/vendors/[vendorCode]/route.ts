@@ -3,6 +3,7 @@ import { z } from "zod";
 import { connectToDatabase } from "@/lib/db/connect";
 import { normalizeAreaCode } from "@/lib/areas";
 import { Area } from "@/models/area";
+import { MilkEntry } from "@/models/milk-entry";
 import { Vendor } from "@/models/vendor";
 import { PurchaseEntry } from "@/models/purchase-entry";
 
@@ -10,6 +11,7 @@ const vendorSchema = z.object({
   code: z.string().trim().optional(),
   name: z.string().trim().min(2),
   phone: z.string().trim().optional(),
+  defaultRate: z.number().nonnegative().optional(),
   areaCode: z.string().trim().optional(),
   notes: z.string().trim().optional(),
   isActive: z.boolean().optional(),
@@ -43,6 +45,7 @@ export async function PUT(request: Request, context: RouteContext) {
     vendor.code = nextCode;
     vendor.name = payload.name;
     vendor.phone = payload.phone || "";
+    vendor.defaultRate = payload.defaultRate ?? vendor.defaultRate;
     vendor.areaCode = area?.code || payload.areaCode || "";
     vendor.areaName = area?.name || "";
     vendor.notes = payload.notes || "";
@@ -50,6 +53,10 @@ export async function PUT(request: Request, context: RouteContext) {
     await vendor.save();
 
     await PurchaseEntry.updateMany(
+      { vendorCode },
+      { $set: { vendorCode: vendor.code, vendorName: vendor.name } },
+    );
+    await MilkEntry.updateMany(
       { vendorCode },
       { $set: { vendorCode: vendor.code, vendorName: vendor.name } },
     );
@@ -67,11 +74,14 @@ export async function PUT(request: Request, context: RouteContext) {
 export async function DELETE(_: Request, context: RouteContext) {
   await connectToDatabase();
   const { vendorCode } = await context.params;
-  const linkedEntries = await PurchaseEntry.countDocuments({ vendorCode });
+  const [linkedPurchases, linkedMilkEntries] = await Promise.all([
+    PurchaseEntry.countDocuments({ vendorCode }),
+    MilkEntry.countDocuments({ vendorCode }),
+  ]);
 
-  if (linkedEntries > 0) {
+  if (linkedPurchases > 0 || linkedMilkEntries > 0) {
     return NextResponse.json(
-      { error: "Cannot delete a vendor with purchase entries" },
+      { error: "Cannot delete a vendor with linked entries" },
       { status: 409 },
     );
   }

@@ -122,7 +122,7 @@ export default async function AdminDashboardPage({
             </p>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row">
               <Link
-                href={`/${locale}/admin/deliveries`}
+                href={`/${locale}/admin/deliveries?start=1`}
                 className="admin-primary-button px-4 py-3 text-sm font-semibold"
               >
                 {t("hero.startRun")}

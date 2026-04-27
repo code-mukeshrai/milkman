@@ -1,8 +1,10 @@
 import { connectToDatabase } from "@/lib/db/connect";
 import type { CalendarStatus } from "@/lib/calendar";
 import { Area } from "@/models/area";
-import { CustomerProfile } from "@/models/customer-profile";
 import { Delivery } from "@/models/delivery";
+import { CustomerProfile } from "@/models/customer-profile";
+import { DeliveryException } from "@/models/delivery-exception";
+import { MilkEntry } from "@/models/milk-entry";
 import { MilkPlan } from "@/models/milk-plan";
 import { Payment } from "@/models/payment";
 import { Product } from "@/models/product";
@@ -50,28 +52,31 @@ type PlainMilkPlan = {
   endDate?: Date | string;
 };
 
-type DeliveryItem = {
-  productCode?: string;
-  productName?: string;
-  category?: string;
-  unit?: string;
-  quantity?: number;
-  rate?: number;
-  totalAmount?: number;
+type PlainDeliveryException = {
+  _id: string;
+  customerId: string;
+  date: Date | string;
+  type: "SKIP" | "PAUSE";
 };
+
+type DeliveryRunStatus = "ALL" | "DELIVERED" | "SKIPPED" | "PAUSED" | "PENDING";
 
 type PlainDelivery = {
   _id: string;
   customerId: string;
   date: Date | string;
-  quantityDelivered?: number;
+  quantityDelivered: number;
   baseQuantity?: number;
   extraQuantity?: number;
   finalQuantity?: number;
-  pricePerLiter?: number;
   status: "DELIVERED" | "SKIPPED" | "PAUSED";
   note?: string;
-  items?: DeliveryItem[];
+};
+
+type DeliveryAddOnItem = {
+  productCode?: string;
+  productName?: string;
+  quantity?: number;
 };
 
 type PlainPayment = {
@@ -99,11 +104,38 @@ type PlainVendor = {
   code: string;
   name: string;
   phone?: string;
+  defaultRate?: number;
   areaCode?: string;
   areaName?: string;
   notes?: string;
   isActive?: boolean;
   sortOrder?: number;
+};
+
+type PlainMilkEntry = {
+  _id: string;
+  vendorId: string;
+  vendorCode: string;
+  vendorName: string;
+  date: Date | string;
+  quantity: number;
+  rate: number;
+  total: number;
+  status: "PAID" | "UNPAID";
+};
+
+type VendorSummaryAggregate = {
+  _id: string;
+  entryCount: number;
+  totalMilkInward: number;
+  totalAmount: number;
+  totalPaid: number;
+  totalUnpaid: number;
+  unpaidEntries: number;
+  averageSupply: number;
+  lastPurchaseDate?: Date;
+  lastQuantity?: number;
+  lastRate?: number;
 };
 
 type PlainPurchase = {
@@ -152,6 +184,10 @@ function monthKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function daysInMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
 function formatDateLabel(value: Date | string) {
   return new Intl.DateTimeFormat("en-IN", {
     day: "2-digit",
@@ -164,16 +200,56 @@ function mapById<T extends { _id: string }>(items: T[]) {
   return new Map(items.map((item) => [String(item._id), item]));
 }
 
+async function getVendorMilkSummaryMap() {
+  await connectToDatabase();
+
+  const results = await MilkEntry.aggregate<VendorSummaryAggregate>([
+    {
+      $sort: { date: -1, createdAt: -1 },
+    },
+    {
+      $group: {
+        _id: "$vendorCode",
+        entryCount: { $sum: 1 },
+        totalMilkInward: { $sum: "$quantity" },
+        totalAmount: { $sum: "$total" },
+        totalPaid: {
+          $sum: {
+            $cond: [{ $eq: ["$status", "PAID"] }, "$total", 0],
+          },
+        },
+        totalUnpaid: {
+          $sum: {
+            $cond: [{ $eq: ["$status", "UNPAID"] }, "$total", 0],
+          },
+        },
+        unpaidEntries: {
+          $sum: {
+            $cond: [{ $eq: ["$status", "UNPAID"] }, 1, 0],
+          },
+        },
+        averageSupply: { $avg: "$quantity" },
+        lastPurchaseDate: { $first: "$date" },
+        lastQuantity: { $first: "$quantity" },
+        lastRate: { $first: "$rate" },
+      },
+    },
+  ]);
+
+  return new Map(results.map((item) => [String(item._id), item]));
+}
+
 async function getReferenceDate() {
   await connectToDatabase();
 
-  const [latestDelivery, latestPayment, latestPurchase] = await Promise.all([
-    Delivery.findOne().sort({ date: -1 }).lean<PlainDelivery | null>(),
+  const [latestDelivery, latestPayment, latestPurchase, latestMilkEntry] = await Promise.all([
+    DeliveryException.findOne().sort({ date: -1 }).lean<PlainDeliveryException | null>(),
     Payment.findOne().sort({ date: -1 }).lean<PlainPayment | null>(),
     PurchaseEntry.findOne().sort({ date: -1 }).lean<PlainPurchase | null>(),
+    MilkEntry.findOne().sort({ date: -1 }).lean<PlainMilkEntry | null>(),
   ]);
 
-  const candidateDates = [latestDelivery?.date, latestPayment?.date, latestPurchase?.date]
+  const candidateDates = [latestDelivery?.date, latestPayment?.date, latestPurchase?.date, latestMilkEntry?.date]
     .map((value) => toDate(value))
     .filter((value): value is Date => Boolean(value));
 
@@ -192,14 +268,14 @@ async function getBaseData() {
   const todayStart = startOfDay(referenceDate);
   const todayEnd = endOfDay(referenceDate);
 
-  const [areas, profiles, users, plans, deliveriesMonth, deliveriesToday, paymentsMonth, products, vendors, purchasesMonth] =
+  const [areas, profiles, users, plans, exceptionsMonth, exceptionsToday, paymentsMonth, products, vendors, purchasesMonth] =
     await Promise.all([
       Area.find().sort({ sortOrder: 1, name: 1 }).lean<PlainArea[]>(),
       CustomerProfile.find().sort({ customerCode: 1 }).lean<PlainCustomerProfile[]>(),
       User.find().lean<PlainUser[]>(),
       MilkPlan.find({ isActive: true }).sort({ startDate: -1 }).lean<PlainMilkPlan[]>(),
-      Delivery.find({ date: { $gte: monthStart, $lte: monthEnd } }).sort({ date: -1 }).lean<PlainDelivery[]>(),
-      Delivery.find({ date: { $gte: todayStart, $lte: todayEnd } }).lean<PlainDelivery[]>(),
+      DeliveryException.find({ date: { $gte: monthStart, $lte: monthEnd } }).sort({ date: -1 }).lean<PlainDeliveryException[]>(),
+      DeliveryException.find({ date: { $gte: todayStart, $lte: todayEnd } }).lean<PlainDeliveryException[]>(),
       Payment.find({ date: { $gte: monthStart, $lte: monthEnd } }).sort({ date: -1 }).lean<PlainPayment[]>(),
       Product.find().sort({ sortOrder: 1, name: 1 }).lean<PlainProduct[]>(),
       Vendor.find().sort({ sortOrder: 1, name: 1 }).lean<PlainVendor[]>(),
@@ -218,8 +294,8 @@ async function getBaseData() {
     profiles,
     users,
     plans,
-    deliveriesMonth,
-    deliveriesToday,
+    exceptionsMonth,
+    exceptionsToday,
     paymentsMonth,
     products,
     vendors,
@@ -241,49 +317,36 @@ function buildCustomerEntities(base: Awaited<ReturnType<typeof getBaseData>>) {
   return base.profiles.map((profile) => {
     const user = userMap.get(String(profile.userId));
     const activePlan = plansByCustomer.get(String(profile._id));
-    const monthDeliveries = base.deliveriesMonth.filter(
-      (delivery) => String(delivery.customerId) === String(profile._id),
+    const monthExceptions = base.exceptionsMonth.filter(
+      (exception) => String(exception.customerId) === String(profile._id),
     );
-    const todayDelivery =
-      base.deliveriesToday.find((delivery) => String(delivery.customerId) === String(profile._id)) ||
+    const todayException =
+      base.exceptionsToday.find((exception) => String(exception.customerId) === String(profile._id)) ||
       null;
     const payments = base.paymentsMonth.filter(
       (payment) => String(payment.customerId) === String(profile._id),
     );
 
-    const milkAmount = monthDeliveries.reduce((total, delivery) => {
-      if (delivery.status !== "DELIVERED") {
-        return total;
-      }
-
-      const liters =
-        delivery.finalQuantity ?? delivery.quantityDelivered ?? delivery.baseQuantity ?? 0;
-      const rate = delivery.pricePerLiter ?? activePlan?.pricePerLiter ?? 0;
-
-      return total + liters * rate;
-    }, 0);
-
-    const addonAmount = monthDeliveries.reduce((total, delivery) => {
-      return (
-        total +
-        (delivery.items || []).reduce(
-          (itemTotal, item) => itemTotal + (item.totalAmount ?? 0),
-          0,
-        )
-      );
-    }, 0);
+    const skippedDays = monthExceptions.filter((entry) => entry.type === "SKIP").length;
+    const pausedDays = monthExceptions.filter((entry) => entry.type === "PAUSE").length;
+    const totalDays = daysInMonth(base.referenceDate);
+    const billableDays = Math.max(totalDays - skippedDays - pausedDays, 0);
+    const quantity = activePlan?.quantityLiters || 0;
+    const rate = activePlan?.pricePerLiter || 0;
+    const milkAmount = billableDays * quantity * rate;
+    const addonAmount = 0;
 
     const paidAmount = payments.reduce((total, payment) => total + payment.amount, 0);
     const totalAmount = milkAmount + addonAmount;
     const dueAmount = Math.max(totalAmount - paidAmount, 0);
-    const deliveredDays = monthDeliveries.filter((entry) => entry.status === "DELIVERED").length;
+    const deliveredDays = billableDays;
 
     return {
       profile,
       user,
       activePlan,
-      monthDeliveries,
-      todayDelivery,
+      monthExceptions,
+      todayException,
       payments,
       totals: {
         milkAmount,
@@ -292,14 +355,10 @@ function buildCustomerEntities(base: Awaited<ReturnType<typeof getBaseData>>) {
         paidAmount,
         dueAmount,
         deliveredDays,
-        monthlyLiters: monthDeliveries.reduce(
-          (total, delivery) =>
-            total +
-            (delivery.status === "DELIVERED"
-              ? delivery.finalQuantity ?? delivery.quantityDelivered ?? 0
-              : 0),
-          0,
-        ),
+        skippedDays,
+        pausedDays,
+        totalDays,
+        monthlyLiters: billableDays * quantity,
       },
     };
   });
@@ -329,7 +388,7 @@ export async function getCustomerListData() {
     status:
       entry.profile.isActive === false || entry.user?.status === "INACTIVE"
         ? "INACTIVE"
-        : entry.todayDelivery?.status === "PAUSED"
+        : entry.todayException?.type === "PAUSE"
           ? "PAUSED"
           : "ACTIVE",
   }));
@@ -358,13 +417,13 @@ export async function getCustomerDetailData(customerCode: string) {
     addressLine1: entity.profile.addressLine1,
     addressLine2: entity.profile.addressLine2 || "",
     landmark: entity.profile.landmark || "",
-    recentDeliveries: entity.monthDeliveries.slice(0, 10).map((delivery) => ({
-      dateLabel: formatDateLabel(delivery.date),
-      status: delivery.status,
-      finalQuantity: delivery.finalQuantity ?? delivery.quantityDelivered ?? 0,
-      extraQuantity: delivery.extraQuantity ?? 0,
-      addOnItems: delivery.items || [],
-      note: delivery.note || "",
+    recentDeliveries: entity.monthExceptions.slice(0, 10).map((exception) => ({
+      dateLabel: formatDateLabel(exception.date),
+      status: exception.type === "PAUSE" ? "PAUSED" : "SKIPPED",
+      finalQuantity: 0,
+      extraQuantity: 0,
+      addOnItems: [] as DeliveryAddOnItem[],
+      note: "",
     })),
   };
 }
@@ -381,16 +440,15 @@ export async function getDashboardData() {
   const activeCustomers = entities.filter(
     (entry) => entry.profile.isActive !== false && entry.user?.status !== "INACTIVE",
   ).length;
-  const todayDelivered = base.deliveriesToday.filter((entry) => entry.status === "DELIVERED").length;
-  const todayPending = Math.max(activeCustomers - todayDelivered, 0);
+  const todayExceptionCount = entities.filter((entry) => entry.todayException).length;
+  const todayDelivered = Math.max(activeCustomers - todayExceptionCount, 0);
+  const todayPending = 0;
   const monthlySales = entities.reduce((total, entry) => total + entry.totals.totalAmount, 0);
   const monthlyDue = entities.reduce((total, entry) => total + entry.totals.dueAmount, 0);
 
   const routeSnapshot = base.areas.map((area) => {
     const areaCustomers = entities.filter((entry) => entry.profile.areaCode === area.code);
-    const delivered = areaCustomers.filter(
-      (entry) => entry.todayDelivery?.status === "DELIVERED",
-    ).length;
+    const delivered = areaCustomers.filter((entry) => !entry.todayException).length;
 
     return {
       areaCode: area.code,
@@ -400,19 +458,14 @@ export async function getDashboardData() {
       liters: areaCustomers.reduce(
         (total, entry) =>
           total +
-          (entry.todayDelivery?.status === "DELIVERED"
-            ? entry.todayDelivery.finalQuantity ??
-            entry.todayDelivery.quantityDelivered ??
-            entry.activePlan?.quantityLiters ??
-            0
-            : 0),
+          (!entry.todayException ? entry.activePlan?.quantityLiters ?? 0 : 0),
         0,
       ),
     };
   });
 
   const attentionCustomers = entities
-    .filter((entry) => entry.totals.dueAmount > 0 || entry.todayDelivery?.status !== "DELIVERED")
+    .filter((entry) => entry.totals.dueAmount > 0 || entry.todayException)
     .slice(0, 6)
     .map((entry) => ({
       customerCode: entry.profile.customerCode,
@@ -421,13 +474,13 @@ export async function getDashboardData() {
       issue:
         entry.totals.dueAmount > 0
           ? "Payment overdue"
-          : entry.todayDelivery?.status === "PAUSED"
+          : entry.todayException?.type === "PAUSE"
             ? "Delivery paused"
-            : "Delivery pending",
+            : "Delivery skipped",
       tone:
         entry.totals.dueAmount > 0
           ? "danger"
-          : entry.todayDelivery?.status === "PAUSED"
+          : entry.todayException?.type === "PAUSE"
             ? "warning"
             : "blue",
     }));
@@ -447,27 +500,73 @@ export async function getDashboardData() {
 }
 
 export async function getTodayDeliveriesData() {
+  return getDeliveryRunData();
+}
+
+export async function getDeliveryRunData(options?: {
+  date?: string;
+  areaCode?: string;
+  status?: DeliveryRunStatus;
+}) {
   const base = await getBaseData();
   const entities = buildCustomerEntities(base);
+  const targetDate = options?.date ? new Date(options.date) : new Date();
+  const dayStart = startOfDay(targetDate);
+  const dayEnd = endOfDay(targetDate);
+  const areaCode = options?.areaCode?.trim().toUpperCase();
+  const statusFilter = options?.status || "ALL";
+  const filteredEntities = areaCode
+    ? entities.filter((entry) => entry.profile.areaCode === areaCode)
+    : entities;
+  const customerIds = filteredEntities.map((entry) => entry.profile._id);
+  const [deliveries, exceptions] = await Promise.all([
+    Delivery.find({
+      customerId: { $in: customerIds },
+      date: { $gte: dayStart, $lte: dayEnd },
+    }).lean<PlainDelivery[]>(),
+    DeliveryException.find({
+      customerId: { $in: customerIds },
+      date: { $gte: dayStart, $lte: dayEnd },
+    }).lean<PlainDeliveryException[]>(),
+  ]);
 
-  return entities.map((entry) => {
-    const today = entry.todayDelivery;
+  const deliveryByCustomer = new Map(
+    deliveries.map((delivery) => [String(delivery.customerId), delivery]),
+  );
+  const exceptionByCustomer = new Map(
+    exceptions.map((exception) => [String(exception.customerId), exception]),
+  );
+
+  const entries = filteredEntities.map((entry) => {
+    const customerKey = String(entry.profile._id);
+    const delivery = deliveryByCustomer.get(customerKey);
+    const exception = exceptionByCustomer.get(customerKey);
     const planQuantity = entry.activePlan?.quantityLiters || 0;
+    const status: Exclude<DeliveryRunStatus, "ALL"> =
+      delivery?.status ||
+      (exception?.type === "PAUSE" ? "PAUSED" : exception?.type === "SKIP" ? "SKIPPED" : "PENDING");
+    const finalQuantity =
+      delivery?.finalQuantity ?? delivery?.quantityDelivered ?? (status === "DELIVERED" ? planQuantity : 0);
 
     return {
       customerCode: entry.profile.customerCode,
       customerName: entry.user?.name || entry.profile.customerCode,
       quantityLabel: `${planQuantity.toFixed(1)} ${entry.activePlan?.unitLabel || "L"}`,
-      status: today?.status || "PENDING",
-      note: today?.note || entry.profile.notes || "",
+      status,
+      note: delivery?.note || entry.profile.notes || "",
       route: entry.profile.areaName,
       areaCode: entry.profile.areaCode,
-      baseQuantity: today?.baseQuantity ?? planQuantity,
-      extraQuantity: today?.extraQuantity ?? 0,
-      finalQuantity: today?.finalQuantity ?? today?.quantityDelivered ?? planQuantity,
-      productItems: today?.items || [],
+      dueAmount: entry.totals.dueAmount,
+      baseQuantity: planQuantity,
+      extraQuantity: delivery?.extraQuantity || 0,
+      finalQuantity,
+      productItems: [],
     };
   });
+
+  return statusFilter === "ALL"
+    ? entries
+    : entries.filter((entry) => entry.status === statusFilter);
 }
 
 export async function getBillingData() {
@@ -515,12 +614,7 @@ export async function getAreaAnalyticsData() {
       dailyConsumption: areaCustomers.reduce(
         (total, entry) =>
           total +
-          (entry.todayDelivery?.status === "DELIVERED"
-            ? entry.todayDelivery.finalQuantity ??
-            entry.todayDelivery.quantityDelivered ??
-            entry.activePlan?.quantityLiters ??
-            0
-            : 0),
+          (!entry.todayException ? entry.activePlan?.quantityLiters ?? 0 : 0),
         0,
       ),
       monthlyConsumption: areaCustomers.reduce(
@@ -540,32 +634,30 @@ export async function getAreasData() {
 
 export async function getAdminCalendarData() {
   const base = await getBaseData();
+  const entities = buildCustomerEntities(base);
   const referenceMonthKey = monthKey(base.referenceDate);
-  const daysInMonth = new Date(
-    base.referenceDate.getFullYear(),
-    base.referenceDate.getMonth() + 1,
-    0,
-  ).getDate();
+  const monthDayCount = daysInMonth(base.referenceDate);
   const leadingBlankSlots = new Date(
     base.referenceDate.getFullYear(),
     base.referenceDate.getMonth(),
     1,
   ).getDay();
 
-  const dayRecords = Array.from({ length: daysInMonth }, (_, index) => {
+  const dayRecords = Array.from({ length: monthDayCount }, (_, index) => {
     const day = index + 1;
     const date = new Date(base.referenceDate.getFullYear(), base.referenceDate.getMonth(), day);
-    const entries = base.deliveriesMonth.filter(
-      (delivery) => toDate(delivery.date)?.toDateString() === date.toDateString(),
+    const entries = base.exceptionsMonth.filter(
+      (exception) => toDate(exception.date)?.toDateString() === date.toDateString(),
     );
-    const deliveredCount = entries.filter((entry) => entry.status === "DELIVERED").length;
-    const pausedCount = entries.filter((entry) => entry.status === "PAUSED").length;
-    const skippedCount = entries.filter((entry) => entry.status === "SKIPPED").length;
-    const liters = entries.reduce(
+    const pausedCount = entries.filter((entry) => entry.type === "PAUSE").length;
+    const skippedCount = entries.filter((entry) => entry.type === "SKIP").length;
+    const deliveredCount = Math.max(entities.length - pausedCount - skippedCount, 0);
+    const exceptionCustomerIds = new Set(entries.map((entry) => String(entry.customerId)));
+    const liters = entities.reduce(
       (total, entry) =>
         total +
-        (entry.status === "DELIVERED"
-          ? entry.finalQuantity ?? entry.quantityDelivered ?? 0
+        (!exceptionCustomerIds.has(String(entry.profile._id))
+          ? entry.activePlan?.quantityLiters ?? 0
           : 0),
       0,
     );
@@ -577,11 +669,11 @@ export async function getAdminCalendarData() {
       weekdayLabel: new Intl.DateTimeFormat("en-IN", { weekday: "short" }).format(date),
       liters,
       status:
-        deliveredCount > 0
-          ? "DELIVERED"
-          : pausedCount > 0
+        pausedCount > 0
             ? "PAUSED"
-            : "SKIPPED" as CalendarStatus,
+            : skippedCount > 0
+              ? "SKIPPED"
+              : "DELIVERED" as CalendarStatus,
       deliveredCount,
       pausedCount,
       skippedCount,
@@ -626,28 +718,21 @@ export async function getCustomerCalendarData(customerCode?: string | null) {
     return null;
   }
 
-  const daysInMonth = new Date(
-    base.referenceDate.getFullYear(),
-    base.referenceDate.getMonth() + 1,
-    0,
-  ).getDate();
+  const monthDayCount = daysInMonth(base.referenceDate);
   const leadingBlankSlots = new Date(
     base.referenceDate.getFullYear(),
     base.referenceDate.getMonth(),
     1,
   ).getDay();
 
-  const days = Array.from({ length: daysInMonth }, (_, index) => {
+  const days = Array.from({ length: monthDayCount }, (_, index) => {
     const day = index + 1;
     const date = new Date(base.referenceDate.getFullYear(), base.referenceDate.getMonth(), day);
     const entry =
-      entity.monthDeliveries.find(
-        (delivery) => toDate(delivery.date)?.toDateString() === date.toDateString(),
+      entity.monthExceptions.find(
+        (exception) => toDate(exception.date)?.toDateString() === date.toDateString(),
       ) || null;
-    const liters =
-      entry?.status === "DELIVERED"
-        ? entry.finalQuantity ?? entry.quantityDelivered ?? entity.activePlan?.quantityLiters ?? 0
-        : 0;
+    const liters = entry ? 0 : entity.activePlan?.quantityLiters ?? 0;
 
     return {
       dateKey: `${monthKey(base.referenceDate)}-${String(day).padStart(2, "0")}`,
@@ -655,8 +740,8 @@ export async function getCustomerCalendarData(customerCode?: string | null) {
       dayOfMonth: day,
       weekdayLabel: new Intl.DateTimeFormat("en-IN", { weekday: "short" }).format(date),
       liters,
-      status: (entry?.status || "SKIPPED") as CalendarStatus,
-      itemCount: entry?.items?.length || 0,
+      status: (entry?.type === "PAUSE" ? "PAUSED" : entry?.type === "SKIP" ? "SKIPPED" : "DELIVERED") as CalendarStatus,
+      itemCount: 0,
     };
   });
 
@@ -742,41 +827,97 @@ export async function getProductsData() {
 }
 
 export async function getVendorsData() {
-  const base = await getBaseData();
-  return base.vendors.map((vendor) => {
-    const entries = base.purchasesMonth.filter((entry) => entry.vendorCode === vendor.code);
-    const totalPurchaseAmount = entries.reduce((total, entry) => total + entry.totalAmount, 0);
-    const totalMilkInward = entries
-      .filter((entry) => entry.productCategory === "MILK")
-      .reduce((total, entry) => total + entry.quantity, 0);
+  await connectToDatabase();
+  const [vendors, summaryMap] = await Promise.all([
+    Vendor.find().sort({ sortOrder: 1, name: 1 }).lean<PlainVendor[]>(),
+    getVendorMilkSummaryMap(),
+  ]);
+
+  return vendors.map((vendor) => {
+    const summary = summaryMap.get(vendor.code);
 
     return {
       _id: String(vendor._id),
       code: vendor.code,
       name: vendor.name,
       phone: vendor.phone ?? "",
+      defaultRate: vendor.defaultRate ?? 0,
       areaCode: vendor.areaCode ?? "",
       areaName: vendor.areaName ?? "",
       notes: vendor.notes ?? "",
       isActive: vendor.isActive ?? true,
       sortOrder: vendor.sortOrder ?? 0,
-      purchaseCount: entries.length,
-      totalPurchaseAmount,
-      totalMilkInward,
-      unpaidEntries: entries.filter((entry) => entry.paymentStatus !== "PAID").length,
-      recentPurchases: entries.slice(0, 6).map((entry) => ({
-        id: String(entry._id),
-        productName: entry.productName,
-        productCode: entry.productCode,
-        quantity: entry.quantity,
-        unit: entry.unit,
-        totalAmount: entry.totalAmount,
-        paymentStatus: entry.paymentStatus,
-        dateLabel: formatDateLabel(entry.date),
-        note: entry.note || "",
-      })),
+      purchaseCount: summary?.entryCount ?? 0,
+      totalPurchaseAmount: summary?.totalAmount ?? 0,
+      totalPaid: summary?.totalPaid ?? 0,
+      unpaidAmount: summary?.totalUnpaid ?? 0,
+      totalMilkInward: summary?.totalMilkInward ?? 0,
+      lastPurchaseDate: summary?.lastPurchaseDate
+        ? formatDateLabel(summary.lastPurchaseDate)
+        : "No entries",
+      averageSupply: summary?.averageSupply ?? 0,
+      unpaidEntries: summary?.unpaidEntries ?? 0,
+      lastQuantity: summary?.lastQuantity ?? 0,
+      lastRate: summary?.lastRate ?? vendor.defaultRate ?? 0,
     };
   });
+}
+
+export async function getMilkLedgerData(filters?: {
+  vendorCode?: string | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+}) {
+  await connectToDatabase();
+
+  const query: Record<string, unknown> = {};
+
+  if (filters?.vendorCode) {
+    query.vendorCode = filters.vendorCode;
+  }
+
+  if (filters?.dateFrom || filters?.dateTo) {
+    query.date = {};
+
+    if (filters?.dateFrom) {
+      query.date = {
+        ...(query.date as object),
+        $gte: startOfDay(new Date(filters.dateFrom)),
+      };
+    }
+
+    if (filters?.dateTo) {
+      query.date = {
+        ...(query.date as object),
+        $lte: endOfDay(new Date(filters.dateTo)),
+      };
+    }
+  }
+
+  const entries = await MilkEntry.find(query)
+    .sort({ date: -1, createdAt: -1 })
+    .lean<PlainMilkEntry[]>();
+
+  return {
+    entries: entries.map((entry) => ({
+      id: String(entry._id),
+      vendorCode: entry.vendorCode,
+      vendorName: entry.vendorName,
+      date: new Date(entry.date).toISOString().slice(0, 10),
+      dateLabel: formatDateLabel(entry.date),
+      quantity: entry.quantity,
+      rate: entry.rate,
+      total: entry.total,
+      status: entry.status,
+    })),
+    summary: {
+      totalMilk: entries.reduce((total, entry) => total + entry.quantity, 0),
+      totalAmount: entries.reduce((total, entry) => total + entry.total, 0),
+      totalUnpaid: entries
+        .filter((entry) => entry.status === "UNPAID")
+        .reduce((total, entry) => total + entry.total, 0),
+    },
+  };
 }
 
 export async function getPurchaseLedgerData() {
@@ -802,9 +943,30 @@ export async function getPurchaseLedgerData() {
         (total, entry) => total + entry.totalAmount,
         0,
       ),
+      totalPaid: base.purchasesMonth
+        .filter((entry) => entry.paymentStatus === "PAID")
+        .reduce((total, entry) => total + entry.totalAmount, 0),
+      unpaidAmount: base.purchasesMonth
+        .filter((entry) => entry.paymentStatus !== "PAID")
+        .reduce((total, entry) => total + entry.totalAmount, 0),
       totalMilkInward: base.purchasesMonth
         .filter((entry) => entry.productCategory === "MILK")
         .reduce((total, entry) => total + entry.quantity, 0),
+      averageSupply:
+        new Set(
+          base.purchasesMonth
+            .filter((entry) => entry.productCategory === "MILK")
+            .map((entry) => formatDateLabel(entry.date)),
+        ).size > 0
+          ? base.purchasesMonth
+              .filter((entry) => entry.productCategory === "MILK")
+              .reduce((total, entry) => total + entry.quantity, 0) /
+            new Set(
+              base.purchasesMonth
+                .filter((entry) => entry.productCategory === "MILK")
+                .map((entry) => formatDateLabel(entry.date)),
+            ).size
+          : 0,
       unpaidEntries: base.purchasesMonth.filter((entry) => entry.paymentStatus !== "PAID").length,
     },
   };

@@ -1,30 +1,50 @@
-import { Clock3, PauseCircle, Truck } from "lucide-react";
+import { CheckCircle2, PauseCircle, XCircle } from "lucide-react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { DeliveryOperationsPanel } from "@/components/deliveries/delivery-operations-panel";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { AdminCard, AdminStatCard } from "@/components/layout/admin-ui";
-import { getDeliveryOperationOptions, getTodayDeliveriesData } from "@/lib/data-service";
+import { getAreasData, getDeliveryRunData } from "@/lib/data-service";
 
 type AdminDeliveriesPageProps = {
   params: Promise<{ locale: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export default async function AdminDeliveriesPage({
   params,
+  searchParams,
 }: AdminDeliveriesPageProps) {
   const { locale } = await params;
+  const query = (await searchParams) || {};
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: "admin.deliveries" });
-  const [entries, options] = await Promise.all([
-    getTodayDeliveriesData(),
-    getDeliveryOperationOptions(),
+  const selectedDate =
+    typeof query.date === "string" && query.date ? query.date : new Date().toISOString().slice(0, 10);
+  const selectedArea = typeof query.area === "string" ? query.area : "";
+  const selectedStatus =
+    typeof query.status === "string" &&
+    ["ALL", "DELIVERED", "SKIPPED", "PAUSED", "PENDING"].includes(query.status)
+      ? query.status
+      : "ALL";
+  const startRun = query.start === "1";
+  const [entries, countEntries, areas] = await Promise.all([
+    getDeliveryRunData({
+      date: selectedDate,
+      areaCode: selectedArea || undefined,
+      status: selectedStatus as "ALL" | "DELIVERED" | "SKIPPED" | "PAUSED" | "PENDING",
+    }),
+    getDeliveryRunData({
+      date: selectedDate,
+      areaCode: selectedArea || undefined,
+      status: "ALL",
+    }),
+    getAreasData(),
   ]);
 
-  const deliveredCount = entries.filter((entry) => entry.status === "DELIVERED").length;
-  const pausedOrSkippedCount = entries.filter(
-    (entry) => entry.status === "PAUSED" || entry.status === "SKIPPED",
-  ).length;
-  const pendingCount = entries.filter((entry) => entry.status === "PENDING").length;
+  const deliveredCount = countEntries.filter((entry) => entry.status === "DELIVERED").length;
+  const skippedCount = countEntries.filter((entry) => entry.status === "SKIPPED").length;
+  const pausedCount = countEntries.filter((entry) => entry.status === "PAUSED").length;
+  const pendingCount = countEntries.filter((entry) => entry.status === "PENDING").length;
 
   return (
     <AdminShell locale={locale} title={t("title")} subtitle={t("subtitle")}>
@@ -33,22 +53,22 @@ export default async function AdminDeliveriesPage({
           label={t("stats.delivered")}
           value={String(deliveredCount)}
           hint={t("stats.deliveredHint")}
-          icon={Truck}
+          icon={CheckCircle2}
           tone="success"
         />
         <AdminStatCard
-          label={t("stats.pending")}
-          value={String(pendingCount)}
-          hint={t("stats.pendingHint")}
-          icon={Clock3}
-          tone="warning"
+          label="Skipped"
+          value={String(skippedCount)}
+          hint="Exception rows only"
+          icon={XCircle}
+          tone="danger"
         />
         <AdminStatCard
-          label={t("stats.pausedSkipped")}
-          value={String(pausedOrSkippedCount)}
+          label="Paused"
+          value={String(pausedCount)}
           hint={t("stats.pausedSkippedHint")}
           icon={PauseCircle}
-          tone="danger"
+          tone="warning"
         />
       </div>
 
@@ -58,15 +78,21 @@ export default async function AdminDeliveriesPage({
 
       <DeliveryOperationsPanel
         entries={entries}
-        customers={options.customers.map((customer) => ({
-          customerCode: customer.customerCode,
-          name: customer.name,
-        }))}
-        products={options.products.map((product) => ({
-          code: product.code,
-          name: product.name,
-          category: product.category,
-        }))}
+        areas={areas.map((area) => ({ code: area.code, name: area.name }))}
+        counts={{
+          delivered: deliveredCount,
+          skipped: skippedCount,
+          paused: pausedCount,
+          pending: pendingCount,
+          total: countEntries.length,
+        }}
+        filters={{
+          date: selectedDate,
+          area: selectedArea,
+          status: selectedStatus as "ALL" | "DELIVERED" | "SKIPPED" | "PAUSED" | "PENDING",
+        }}
+        locale={locale}
+        startRun={startRun}
       />
     </AdminShell>
   );

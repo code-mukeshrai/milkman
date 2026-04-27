@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BarChart2, Eye, FilePenLine, MoreVertical, PauseCircle, SkipForward, Truck } from "lucide-react";
+import { BarChart2, Eye, FilePenLine, MoreVertical } from "lucide-react";
 
 type CustomerCardActionsProps = {
   customerCode: string;
@@ -12,7 +12,7 @@ type CustomerCardActionsProps = {
 
 export function CustomerCardActions({ customerCode, locale }: CustomerCardActionsProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [loading, setLoading] = useState<"DELIVERED" | "SKIPPED" | "PAUSED" | null>(null);
+  const [loading, setLoading] = useState<"SKIP" | "PAUSE" | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -26,13 +26,13 @@ export function CustomerCardActions({ customerCode, locale }: CustomerCardAction
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  async function handleDeliveryAction(status: "DELIVERED" | "SKIPPED" | "PAUSED") {
-    setLoading(status);
+  async function handleDeliveryAction(type: "SKIP" | "PAUSE") {
+    setLoading(type);
     try {
       await fetch("/api/deliveries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerCode, status }),
+        body: JSON.stringify({ customerCode, type }),
       });
       router.refresh();
     } finally {
@@ -41,46 +41,34 @@ export function CustomerCardActions({ customerCode, locale }: CustomerCardAction
   }
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      {/* Delivered */}
+    <div className="flex items-center gap-2">
       <button
         type="button"
-        onClick={() => handleDeliveryAction("DELIVERED")}
+        onClick={() => handleDeliveryAction("SKIP")}
         disabled={loading !== null}
-        className="admin-primary-button px-4 py-3 text-sm font-semibold disabled:opacity-60"
+        className="admin-secondary-button h-10 w-10 justify-center p-0 text-base font-semibold disabled:opacity-60"
+        aria-label="Skip delivery"
+        title="Skip"
       >
-        <Truck className="h-4 w-4" />
-        {loading === "DELIVERED" ? "Saving…" : "Delivered"}
+        {loading === "SKIP" ? "..." : "❌"}
       </button>
 
-      {/* Skipped */}
       <button
         type="button"
-        onClick={() => handleDeliveryAction("SKIPPED")}
+        onClick={() => handleDeliveryAction("PAUSE")}
         disabled={loading !== null}
-        className="admin-secondary-button px-4 py-3 text-sm font-semibold disabled:opacity-60"
+        className="admin-outline-button h-10 w-10 justify-center p-0 text-base font-semibold disabled:opacity-60"
+        aria-label="Pause delivery"
+        title="Pause"
       >
-        <SkipForward className="h-4 w-4" />
-        {loading === "SKIPPED" ? "Saving…" : "Skipped"}
+        {loading === "PAUSE" ? "..." : "⏸"}
       </button>
 
-      {/* Paused */}
-      <button
-        type="button"
-        onClick={() => handleDeliveryAction("PAUSED")}
-        disabled={loading !== null}
-        className="admin-outline-button px-4 py-3 text-sm font-semibold disabled:opacity-60"
-      >
-        <PauseCircle className="h-4 w-4" />
-        {loading === "PAUSED" ? "Saving…" : "Paused"}
-      </button>
-
-      {/* 3-dot menu */}
       <div className="relative" ref={menuRef}>
         <button
           type="button"
           onClick={() => setMenuOpen((prev) => !prev)}
-          className="admin-outline-button px-3 py-3 text-sm font-semibold"
+          className="admin-outline-button h-10 w-10 justify-center p-0 text-sm font-semibold"
           aria-label="More options"
         >
           <MoreVertical className="h-4 w-4" />
@@ -91,7 +79,7 @@ export function CustomerCardActions({ customerCode, locale }: CustomerCardAction
             <Link
               href={`/${locale}/admin/customers/${customerCode}`}
               onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] hover:bg-[var(--admin-panel-muted)] transition-colors"
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] transition-colors hover:bg-[var(--admin-panel-muted)]"
             >
               <Eye className="h-4 w-4 text-[var(--admin-muted)]" />
               View
@@ -99,7 +87,7 @@ export function CustomerCardActions({ customerCode, locale }: CustomerCardAction
             <Link
               href={`/${locale}/admin/customers/${customerCode}?tab=analytics`}
               onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] hover:bg-[var(--admin-panel-muted)] transition-colors"
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] transition-colors hover:bg-[var(--admin-panel-muted)]"
             >
               <BarChart2 className="h-4 w-4 text-[var(--admin-muted)]" />
               Details
@@ -107,7 +95,7 @@ export function CustomerCardActions({ customerCode, locale }: CustomerCardAction
             <Link
               href={`/${locale}/admin/customers/${customerCode}/edit`}
               onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] hover:bg-[var(--admin-panel-muted)] transition-colors"
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] transition-colors hover:bg-[var(--admin-panel-muted)]"
             >
               <FilePenLine className="h-4 w-4 text-[var(--admin-muted)]" />
               Edit

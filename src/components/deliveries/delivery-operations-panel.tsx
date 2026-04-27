@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoveRight, ShieldAlert } from "lucide-react";
+import { CalendarDays, Check, Filter, MapPin, Pause, Play, X } from "lucide-react";
 import {
   AdminBadge,
   AdminButton,
@@ -11,327 +11,367 @@ import {
   AdminInput,
   AdminSelect,
 } from "@/components/layout/admin-ui";
+import { formatCurrencyINR } from "@/lib/utils";
+
+type DeliveryStatus = "ALL" | "DELIVERED" | "SKIPPED" | "PAUSED" | "PENDING";
 
 type DeliveryEntry = {
   customerCode: string;
   customerName: string;
   quantityLabel: string;
-  status: string;
-  note: string;
+  status: Exclude<DeliveryStatus, "ALL">;
+  dueAmount: number;
   route: string;
   areaCode: string;
-  baseQuantity: number;
-  extraQuantity: number;
-  finalQuantity: number;
-  productItems: Array<{ productName?: string; quantity?: number; totalAmount?: number }>;
-};
-
-type ProductOption = {
-  code: string;
-  name: string;
-  category: string;
-};
-
-type CustomerOption = {
-  customerCode: string;
-  name: string;
+  note: string;
 };
 
 type DeliveryOperationsPanelProps = {
   entries: DeliveryEntry[];
-  customers: CustomerOption[];
-  products: ProductOption[];
+  areas: Array<{ code: string; name: string }>;
+  counts: {
+    delivered: number;
+    skipped: number;
+    paused: number;
+    pending: number;
+    total: number;
+  };
+  filters: {
+    date: string;
+    area: string;
+    status: DeliveryStatus;
+  };
+  locale: string;
+  startRun: boolean;
 };
+
+const statusOptions: Array<{ value: DeliveryStatus; label: string }> = [
+  { value: "ALL", label: "All" },
+  { value: "DELIVERED", label: "Delivered" },
+  { value: "SKIPPED", label: "Skipped" },
+  { value: "PAUSED", label: "Paused" },
+  { value: "PENDING", label: "Pending" },
+];
+
+function getStatusTone(status: DeliveryEntry["status"]) {
+  if (status === "DELIVERED") return "success";
+  if (status === "PAUSED") return "warning";
+  if (status === "SKIPPED") return "danger";
+  return "blue";
+}
 
 export function DeliveryOperationsPanel({
   entries,
-  customers,
-  products,
+  areas,
+  counts,
+  filters,
+  locale,
+  startRun,
 }: DeliveryOperationsPanelProps) {
   const router = useRouter();
-  const defaultEntry = useMemo(
-    () => entries.find((entry) => entry.customerCode === customers[0]?.customerCode) || entries[0],
-    [customers, entries],
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [isLocationOpen, setIsLocationOpen] = useState(startRun);
+  const [locationOptions, setLocationOptions] = useState(areas);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
+  const [locationError, setLocationError] = useState("");
+
+  const selectedAreaName = useMemo(
+    () => areas.find((area) => area.code === filters.area)?.name || "All locations",
+    [areas, filters.area],
   );
-  const [selectedCustomerCode, setSelectedCustomerCode] = useState(
-    defaultEntry?.customerCode || "",
-  );
-  const [status, setStatus] = useState("DELIVERED");
-  const [extraQuantity, setExtraQuantity] = useState("0");
-  const [finalQuantity, setFinalQuantity] = useState(String(defaultEntry?.finalQuantity ?? 0));
-  const [note, setNote] = useState(defaultEntry?.note || "");
-  const [productCode, setProductCode] = useState("");
-  const [productQuantity, setProductQuantity] = useState("1");
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const entry = entries.find((item) => item.customerCode === selectedCustomerCode);
-
-    if (!entry) {
-      return;
+    if (startRun) {
+      openLocationSelector();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startRun]);
 
-    setStatus(entry.status === "PENDING" ? "DELIVERED" : entry.status);
-    setExtraQuantity(String(entry.extraQuantity));
-    setFinalQuantity(String(entry.finalQuantity || entry.baseQuantity));
-    setNote(entry.note || "");
-  }, [entries, selectedCustomerCode]);
+  function updateFilters(nextFilters: Partial<typeof filters>) {
+    const params = new URLSearchParams();
+    const next = { ...filters, ...nextFilters };
 
-  async function saveDelivery(payload: {
-    customerCode: string;
-    status: string;
-    extraQuantity?: number;
-    finalQuantity?: number;
-    note?: string;
-    items?: Array<{ productCode: string; quantity: number }>;
-  }) {
-    setIsSubmitting(true);
-    setError("");
+    if (next.date) params.set("date", next.date);
+    if (next.area) params.set("area", next.area);
+    if (next.status !== "ALL") params.set("status", next.status);
+
+    router.push(`/${locale}/admin/deliveries?${params.toString()}`);
+  }
+
+  async function openLocationSelector() {
+    setIsLocationOpen(true);
+    setLocationError("");
+    setIsLoadingLocations(true);
 
     try {
-      const response = await fetch("/api/deliveries", {
+      const response = await fetch("/api/areas", { cache: "no-store" });
+      const data = (await response.json()) as {
+        areas?: Array<{ code: string; name: string; isActive?: boolean }>;
+      };
+      const areaPayload: Array<{ code: string; name: string; isActive?: boolean }> =
+        data.areas || areas;
+      const activeAreas = areaPayload
+        .filter((area) => area.isActive !== false)
+        .map((area) => ({ code: area.code, name: area.name }));
+      setLocationOptions(activeAreas);
+    } catch {
+      setLocationError("Unable to load locations. Showing cached locations.");
+      setLocationOptions(areas);
+    } finally {
+      setIsLoadingLocations(false);
+    }
+  }
+
+  function selectLocation(areaCode: string) {
+    if (areaCode) {
+      window.localStorage.setItem("milkman:last-area", areaCode);
+    }
+    setIsLocationOpen(false);
+    updateFilters({ area: areaCode, status: "ALL" });
+  }
+
+  async function saveStatus(
+    customerCode: string,
+    type: "DELIVERED" | "SKIPPED" | "PAUSED",
+  ) {
+    setLoadingKey(`${customerCode}:${type}`);
+
+    try {
+      await fetch("/api/deliveries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ customerCode, type, date: filters.date }),
       });
-      const data = (await response.json()) as { error?: string };
-
-      if (!response.ok) {
-        throw new Error(data.error || "Unable to save delivery");
-      }
-
       router.refresh();
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Unable to save delivery");
     } finally {
-      setIsSubmitting(false);
+      setLoadingKey(null);
     }
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-      <AdminCard>
-        <div className="space-y-3">
-          {entries.map((task) => (
-            <article key={task.customerCode} className="admin-panel-muted rounded-[26px] p-4">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-lg font-semibold text-[var(--admin-text)]">
-                      {task.customerName}
-                    </h2>
-                    <AdminBadge
-                      tone={
-                        task.status === "DELIVERED"
-                          ? "success"
-                          : task.status === "PAUSED"
-                            ? "warning"
-                            : "danger"
-                      }
-                    >
-                      {task.status}
-                    </AdminBadge>
-                  </div>
-                  <p className="mt-1 text-sm text-[var(--admin-muted)]">
-                    {task.quantityLabel} planned • {task.route} • {task.areaCode}
-                  </p>
-                  <p className="mt-1 text-sm text-[var(--admin-muted)]">
-                    Final: {task.finalQuantity.toFixed(1)} L • Extra: {task.extraQuantity.toFixed(1)} L
-                  </p>
-                  {task.productItems.length ? (
-                    <p className="mt-1 text-sm text-[var(--admin-muted)]">
-                      Add-ons:{" "}
-                      {task.productItems
-                        .map((item) => `${item.productName || "Item"} x ${item.quantity || 0}`)
-                        .join(", ")}
-                    </p>
-                  ) : null}
+    <AdminCard className="space-y-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-[var(--admin-primary-strong)]" />
+            <h2 className="text-lg font-semibold text-[var(--admin-text)]">Delivery filters</h2>
+          </div>
+          <p className="mt-1 text-sm text-[var(--admin-muted)]">
+            {selectedAreaName} · {counts.total} customers · {counts.pending} pending
+          </p>
+        </div>
+        <AdminButton onClick={openLocationSelector} className="w-full sm:w-auto">
+          <Play className="h-4 w-4" />
+          Start Morning Run
+        </AdminButton>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <AdminField label="Date">
+          <div className="relative">
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
+            <AdminInput
+              type="date"
+              value={filters.date}
+              onChange={(event) => updateFilters({ date: event.target.value })}
+              className="pl-10"
+            />
+          </div>
+        </AdminField>
+        <AdminField label="Status">
+          <AdminSelect
+            value={filters.status}
+            onChange={(event) => updateFilters({ status: event.target.value as DeliveryStatus })}
+          >
+            {statusOptions.map((status) => (
+              <option key={status.value} value={status.value}>
+                {status.label}
+              </option>
+            ))}
+          </AdminSelect>
+        </AdminField>
+        <AdminField label="Location">
+          <AdminSelect
+            value={filters.area}
+            onChange={(event) => updateFilters({ area: event.target.value })}
+          >
+            <option value="">All locations</option>
+            {areas.map((area) => (
+              <option key={area.code} value={area.code}>
+                {area.name}
+              </option>
+            ))}
+          </AdminSelect>
+        </AdminField>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-4">
+        <div className="admin-panel-muted rounded-[16px] px-3 py-3">
+          <p className="text-xs font-semibold text-[var(--admin-muted)]">Delivered</p>
+          <p className="mt-1 text-2xl font-semibold text-[var(--admin-text)]">{counts.delivered}</p>
+        </div>
+        <div className="admin-panel-muted rounded-[16px] px-3 py-3">
+          <p className="text-xs font-semibold text-[var(--admin-muted)]">Skipped</p>
+          <p className="mt-1 text-2xl font-semibold text-[var(--admin-text)]">{counts.skipped}</p>
+        </div>
+        <div className="admin-panel-muted rounded-[16px] px-3 py-3">
+          <p className="text-xs font-semibold text-[var(--admin-muted)]">Paused</p>
+          <p className="mt-1 text-2xl font-semibold text-[var(--admin-text)]">{counts.paused}</p>
+        </div>
+        <div className="admin-panel-muted rounded-[16px] px-3 py-3">
+          <p className="text-xs font-semibold text-[var(--admin-muted)]">Pending</p>
+          <p className="mt-1 text-2xl font-semibold text-[var(--admin-text)]">{counts.pending}</p>
+        </div>
+      </div>
+
+      {counts.total > 0 && counts.delivered + counts.skipped + counts.paused === 0 ? (
+        <div className="rounded-[18px] border border-[var(--admin-border)] bg-white px-4 py-3 text-sm text-[var(--admin-muted)]">
+          No saved delivery records for this date yet. Pending customers are ready for marking.
+        </div>
+      ) : null}
+
+      <div className="max-h-[72vh] space-y-2 overflow-y-auto pr-1">
+        {entries.length === 0 ? (
+          <div className="admin-panel-muted rounded-[20px] px-4 py-8 text-center">
+            <MapPin className="mx-auto h-8 w-8 text-[var(--admin-primary-strong)]" />
+            <h3 className="mt-3 text-base font-semibold text-[var(--admin-text)]">
+              {counts.total === 0 && filters.area
+                ? "No customers in this location"
+                : "No deliveries match these filters"}
+            </h3>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--admin-muted)]">
+              {counts.total === 0 && filters.area
+                ? "Choose another location or add customers with this area mapping."
+                : "Try All status, another date, or a different location."}
+            </p>
+          </div>
+        ) : null}
+
+        {entries.map((task) => (
+          <article
+            key={task.customerCode}
+            className="admin-panel-muted rounded-[16px] px-3 py-2.5"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-sm font-semibold text-[var(--admin-text)]">
+                    {task.customerName}
+                  </h2>
+                  <AdminBadge tone={getStatusTone(task.status)}>{task.status}</AdminBadge>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-3 xl:w-[420px]">
-                  <AdminButton
-                    className="justify-center"
-                    onClick={() =>
-                      saveDelivery({
-                        customerCode: task.customerCode,
-                        status: "DELIVERED",
-                        finalQuantity: task.baseQuantity + task.extraQuantity,
-                        extraQuantity: task.extraQuantity,
-                        note: task.note,
-                      })
-                    }
-                  >
-                    Delivered
-                  </AdminButton>
-                  <AdminButton
-                    variant="secondary"
-                    className="justify-center"
-                    onClick={() =>
-                      saveDelivery({
-                        customerCode: task.customerCode,
-                        status: "SKIPPED",
-                        finalQuantity: 0,
-                        note: task.note,
-                      })
-                    }
-                  >
-                    Skip
-                  </AdminButton>
-                  <AdminButton
-                    variant="outline"
-                    className="justify-center"
-                    onClick={() =>
-                      saveDelivery({
-                        customerCode: task.customerCode,
-                        status: "PAUSED",
-                        finalQuantity: 0,
-                        note: task.note,
-                      })
-                    }
-                  >
-                    Pause
-                  </AdminButton>
-                </div>
+                <p className="mt-0.5 text-xs font-medium text-[var(--admin-muted)]">
+                  {task.quantityLabel} · {task.route}
+                </p>
+                {task.note ? (
+                  <p className="mt-1 truncate text-xs text-[var(--admin-muted)]">{task.note}</p>
+                ) : null}
               </div>
 
-              <div className="admin-divider my-5" />
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2 text-sm text-[var(--admin-muted)]">
-                  <ShieldAlert className="h-4 w-4 text-[var(--admin-primary-strong)]" />
-                  <span>{task.note || "No note added for today"}</span>
+              <div className="flex shrink-0 items-center gap-2">
+                <div className="w-[78px] text-right">
+                  <p
+                    className={
+                      task.dueAmount > 500
+                        ? "text-sm font-bold text-[#d14646]"
+                        : "text-sm font-semibold text-[var(--admin-text)]"
+                    }
+                  >
+                    {formatCurrencyINR(task.dueAmount)}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--admin-primary-strong)]"
-                  onClick={() => {
-                    setSelectedCustomerCode(task.customerCode);
-                    setStatus(task.status === "PENDING" ? "DELIVERED" : task.status);
-                    setExtraQuantity(String(task.extraQuantity));
-                    setFinalQuantity(String(task.finalQuantity || task.baseQuantity));
-                    setNote(task.note || "");
-                    setProductCode("");
-                    setProductQuantity("1");
-                  }}
+                  onClick={() => saveStatus(task.customerCode, "DELIVERED")}
+                  disabled={loadingKey !== null}
+                  className="admin-primary-button h-9 w-9 justify-center p-0 text-sm disabled:opacity-60"
+                  aria-label={`Mark ${task.customerName} delivered`}
+                  title="Delivered"
                 >
-                  Load in form
-                  <MoveRight className="h-4 w-4" />
+                  {loadingKey === `${task.customerCode}:DELIVERED` ? "..." : <Check className="h-4 w-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveStatus(task.customerCode, "SKIPPED")}
+                  disabled={loadingKey !== null}
+                  className="admin-secondary-button h-9 w-9 justify-center p-0 text-sm disabled:opacity-60"
+                  aria-label={`Skip ${task.customerName}`}
+                  title="Skip"
+                >
+                  {loadingKey === `${task.customerCode}:SKIPPED` ? "..." : <X className="h-4 w-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveStatus(task.customerCode, "PAUSED")}
+                  disabled={loadingKey !== null}
+                  className="admin-outline-button h-9 w-9 justify-center p-0 text-sm disabled:opacity-60"
+                  aria-label={`Pause ${task.customerName}`}
+                  title="Pause"
+                >
+                  {loadingKey === `${task.customerCode}:PAUSED` ? "..." : <Pause className="h-4 w-4" />}
                 </button>
               </div>
-            </article>
-          ))}
-        </div>
-      </AdminCard>
-
-      <AdminCard>
-        <div>
-          <h2 className="text-lg font-semibold text-[var(--admin-text)]">Daily override form</h2>
-          <p className="mt-1 text-sm text-[var(--admin-muted)]">
-            Save extra milk and ad hoc product items for one customer today.
-          </p>
-        </div>
-        <div className="mt-5 space-y-4">
-          <AdminField label="Customer">
-            <AdminSelect
-              value={selectedCustomerCode}
-              onChange={(event) => setSelectedCustomerCode(event.target.value)}
-            >
-              {customers.map((customer) => (
-                <option key={customer.customerCode} value={customer.customerCode}>
-                  {customer.name} • {customer.customerCode}
-                </option>
-              ))}
-            </AdminSelect>
-          </AdminField>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <AdminField label="Status">
-              <AdminSelect value={status} onChange={(event) => setStatus(event.target.value)}>
-                <option value="DELIVERED">Delivered</option>
-                <option value="SKIPPED">Skipped</option>
-                <option value="PAUSED">Paused</option>
-              </AdminSelect>
-            </AdminField>
-            <AdminField label="Extra milk (L)">
-              <AdminInput
-                value={extraQuantity}
-                onChange={(event) => setExtraQuantity(event.target.value)}
-              />
-            </AdminField>
-            <AdminField label="Final quantity (L)">
-              <AdminInput
-                value={finalQuantity}
-                onChange={(event) => setFinalQuantity(event.target.value)}
-              />
-            </AdminField>
-          </div>
-
-          <AdminField label="Add-on product">
-            <AdminSelect value={productCode} onChange={(event) => setProductCode(event.target.value)}>
-              <option value="">No add-on product</option>
-              {products.map((product) => (
-                <option key={product.code} value={product.code}>
-                  {product.name} • {product.code}
-                </option>
-              ))}
-            </AdminSelect>
-          </AdminField>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <AdminField label="Product quantity">
-              <AdminInput
-                value={productQuantity}
-                onChange={(event) => setProductQuantity(event.target.value)}
-              />
-            </AdminField>
-            <AdminField label="Note">
-              <AdminInput value={note} onChange={(event) => setNote(event.target.value)} />
-            </AdminField>
-          </div>
-
-          {error ? (
-            <div className="rounded-[18px] bg-[var(--admin-danger-soft)] px-4 py-3 text-sm font-medium text-[#d14646]">
-              {error}
             </div>
-          ) : null}
+          </article>
+        ))}
+      </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            <AdminButton
-              className="justify-center"
-              disabled={isSubmitting}
-              onClick={() =>
-                saveDelivery({
-                  customerCode: selectedCustomerCode,
-                  status,
-                  extraQuantity: Number(extraQuantity || 0),
-                  finalQuantity: Number(finalQuantity || 0),
-                  note,
-                  items:
-                    productCode && Number(productQuantity) > 0
-                      ? [{ productCode, quantity: Number(productQuantity) }]
-                      : [],
-                })
-              }
-            >
-              Save daily record
-            </AdminButton>
-            <AdminButton
-              variant="secondary"
-              className="justify-center"
-              disabled={isSubmitting}
-              onClick={() => {
-                const entry = entries.find((item) => item.customerCode === selectedCustomerCode);
-                setExtraQuantity("0");
-                setFinalQuantity(String(entry?.baseQuantity || 0));
-                setProductCode("");
-                setProductQuantity("1");
-                setNote(entry?.note || "");
-              }}
-            >
-              Reset form
-            </AdminButton>
+      {isLocationOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/35 p-3 sm:items-center sm:justify-center">
+          <div className="admin-panel w-full max-w-lg rounded-[24px] p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--admin-text)]">
+                  Select route location
+                </h2>
+                <p className="mt-1 text-sm text-[var(--admin-muted)]">
+                  Pick one area to load only its customers for the morning run.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="admin-secondary-button h-9 w-9 p-0"
+                onClick={() => setIsLocationOpen(false)}
+                aria-label="Close location selector"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 grid max-h-[52vh] gap-2 overflow-y-auto pr-1">
+              {isLoadingLocations ? (
+                <div className="admin-panel-muted rounded-[16px] px-4 py-3 text-sm text-[var(--admin-muted)]">
+                  Loading locations...
+                </div>
+              ) : null}
+              {locationError ? (
+                <div className="rounded-[16px] border border-[var(--admin-border)] bg-white px-4 py-3 text-sm text-[var(--admin-muted)]">
+                  {locationError}
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className="admin-secondary-button justify-between px-4 py-3 text-left text-sm font-semibold"
+                onClick={() => selectLocation("")}
+              >
+                <span>All locations</span>
+                <MapPin className="h-4 w-4" />
+              </button>
+              {locationOptions.map((area) => (
+                <button
+                  key={area.code}
+                  type="button"
+                  className="admin-secondary-button justify-between px-4 py-3 text-left text-sm font-semibold"
+                  onClick={() => selectLocation(area.code)}
+                >
+                  <span>{area.name}</span>
+                  <MapPin className="h-4 w-4" />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </AdminCard>
-    </div>
+      ) : null}
+    </AdminCard>
   );
 }
