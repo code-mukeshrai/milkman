@@ -268,7 +268,7 @@ async function getBaseData() {
   const todayStart = startOfDay(referenceDate);
   const todayEnd = endOfDay(referenceDate);
 
-  const [areas, profiles, users, plans, exceptionsMonth, exceptionsToday, paymentsMonth, products, vendors, purchasesMonth] =
+  const [areas, profiles, users, plans, exceptionsMonth, exceptionsToday, deliveriesToday, paymentsMonth, products, vendors, purchasesMonth] =
     await Promise.all([
       Area.find().sort({ sortOrder: 1, name: 1 }).lean<PlainArea[]>(),
       CustomerProfile.find().sort({ customerCode: 1 }).lean<PlainCustomerProfile[]>(),
@@ -276,6 +276,7 @@ async function getBaseData() {
       MilkPlan.find({ isActive: true }).sort({ startDate: -1 }).lean<PlainMilkPlan[]>(),
       DeliveryException.find({ date: { $gte: monthStart, $lte: monthEnd } }).sort({ date: -1 }).lean<PlainDeliveryException[]>(),
       DeliveryException.find({ date: { $gte: todayStart, $lte: todayEnd } }).lean<PlainDeliveryException[]>(),
+      Delivery.find({ date: { $gte: todayStart, $lte: todayEnd } }).lean<any[]>(),
       Payment.find({ date: { $gte: monthStart, $lte: monthEnd } }).sort({ date: -1 }).lean<PlainPayment[]>(),
       Product.find().sort({ sortOrder: 1, name: 1 }).lean<PlainProduct[]>(),
       Vendor.find().sort({ sortOrder: 1, name: 1 }).lean<PlainVendor[]>(),
@@ -296,6 +297,7 @@ async function getBaseData() {
     plans,
     exceptionsMonth,
     exceptionsToday,
+    deliveriesToday,
     paymentsMonth,
     products,
     vendors,
@@ -367,31 +369,42 @@ function buildCustomerEntities(base: Awaited<ReturnType<typeof getBaseData>>) {
 export async function getCustomerListData() {
   const base = await getBaseData();
   const customerEntities = buildCustomerEntities(base);
+  const deliveryMap = new Map(base.deliveriesToday.map((d) => [String(d.customerId), d]));
 
-  return customerEntities.map((entry) => ({
-    customerCode: entry.profile.customerCode,
-    name: entry.user?.name || entry.profile.customerCode,
-    phone: entry.user?.phone || "",
-    areaCode: entry.profile.areaCode,
-    areaName: entry.profile.areaName,
-    address: [entry.profile.addressLine1, entry.profile.addressLine2, entry.profile.landmark]
-      .filter(Boolean)
-      .join(", "),
-    quantityLabel: `${(entry.activePlan?.quantityLiters || 0).toFixed(1)} ${entry.activePlan?.unitLabel || "L"}`,
-    quantity: entry.activePlan?.quantityLiters || 0,
-    rate: entry.activePlan?.pricePerLiter || 0,
-    due: entry.totals.dueAmount,
-    billed: entry.totals.totalAmount,
-    paid: entry.totals.paidAmount,
-    notes: entry.profile.notes || "",
-    deliverySlot: "Morning",
-    status:
-      entry.profile.isActive === false || entry.user?.status === "INACTIVE"
-        ? "INACTIVE"
-        : entry.todayException?.type === "PAUSE"
-          ? "PAUSED"
-          : "ACTIVE",
-  }));
+  return customerEntities
+    .map((entry) => {
+      const customerId = String(entry.profile._id);
+      const delivery = deliveryMap.get(customerId);
+      const deliveryStatus = delivery?.status || null;
+
+      return {
+        id: customerId,
+        customerCode: entry.profile.customerCode,
+        name: entry.user?.name || entry.profile.customerCode,
+        phone: entry.user?.phone || "",
+        areaCode: entry.profile.areaCode,
+        areaName: entry.profile.areaName,
+        address: [entry.profile.addressLine1, entry.profile.addressLine2, entry.profile.landmark]
+          .filter(Boolean)
+          .join(", "),
+        quantityLabel: `${(entry.activePlan?.quantityLiters || 0).toFixed(1)} ${entry.activePlan?.unitLabel || "L"}`,
+        quantity: entry.activePlan?.quantityLiters || 0,
+        rate: entry.activePlan?.pricePerLiter || 0,
+        due: entry.totals.dueAmount,
+        billed: entry.totals.totalAmount,
+        paid: entry.totals.paidAmount,
+        notes: entry.profile.notes || "",
+        deliverySlot: "Morning",
+        deliveryStatus,
+        status:
+          entry.profile.isActive === false || entry.user?.status === "INACTIVE"
+            ? "INACTIVE"
+            : entry.todayException?.type === "PAUSE"
+              ? "PAUSED"
+              : "ACTIVE",
+      };
+    })
+    .sort((a, b) => b.due - a.due);
 }
 
 export async function getCustomerDetailData(customerCode: string) {
@@ -564,9 +577,23 @@ export async function getDeliveryRunData(options?: {
     };
   });
 
+  const STATUS_PRIORITY: Record<string, number> = {
+    PENDING: 1,
+    PAUSED: 2,
+    SKIPPED: 3,
+    DELIVERED: 4,
+  };
+
+  const sortedEntries = entries.sort((a, b) => {
+    const pA = STATUS_PRIORITY[a.status] || 5;
+    const pB = STATUS_PRIORITY[b.status] || 5;
+    if (pA !== pB) return pA - pB;
+    return a.customerName.localeCompare(b.customerName);
+  });
+
   return statusFilter === "ALL"
-    ? entries
-    : entries.filter((entry) => entry.status === statusFilter);
+    ? sortedEntries
+    : sortedEntries.filter((entry) => entry.status === statusFilter);
 }
 
 export async function getBillingData() {
@@ -632,9 +659,17 @@ export async function getAreasData() {
   return base.areas;
 }
 
-export async function getAdminCalendarData() {
+export async function getAdminCalendarData(filters?: {
+  areaCode?: string;
+  status?: string;
+}) {
   const base = await getBaseData();
-  const entities = buildCustomerEntities(base);
+  let entities = buildCustomerEntities(base);
+
+  if (filters?.areaCode) {
+    entities = entities.filter((e) => e.profile.areaCode === filters.areaCode);
+  }
+
   const referenceMonthKey = monthKey(base.referenceDate);
   const monthDayCount = daysInMonth(base.referenceDate);
   const leadingBlankSlots = new Date(
@@ -647,7 +682,8 @@ export async function getAdminCalendarData() {
     const day = index + 1;
     const date = new Date(base.referenceDate.getFullYear(), base.referenceDate.getMonth(), day);
     const entries = base.exceptionsMonth.filter(
-      (exception) => toDate(exception.date)?.toDateString() === date.toDateString(),
+      (exception) => toDate(exception.date)?.toDateString() === date.toDateString() &&
+      (!filters?.areaCode || entities.some(e => String(e.profile._id) === String(exception.customerId)))
     );
     const pausedCount = entries.filter((entry) => entry.type === "PAUSE").length;
     const skippedCount = entries.filter((entry) => entry.type === "SKIP").length;

@@ -23,7 +23,7 @@ type CustomerFormProps = {
     addressLine2: string;
     areaCode: string;
     landmark: string;
-    notes: string;
+    internalNote: string;
     quantityLiters: number;
     pricePerLiter: number;
     unitLabel: string;
@@ -49,7 +49,7 @@ export function CustomerForm({
       addressLine2: initialValues?.addressLine2 || "",
       areaCode: initialValues?.areaCode || areas[0]?.code || "",
       landmark: initialValues?.landmark || "",
-      notes: initialValues?.notes || "",
+      internalNote: initialValues?.internalNote || "",
       quantityLiters: String(initialValues?.quantityLiters ?? 2),
       pricePerLiter: String(initialValues?.pricePerLiter ?? 62),
       unitLabel: initialValues?.unitLabel || "L",
@@ -67,11 +67,16 @@ export function CustomerForm({
     setError("");
 
     try {
-      const payload = {
-        ...form,
+      const { internalNote, ...rest } = form;
+      const payload: any = {
+        ...rest,
         quantityLiters: Number(form.quantityLiters),
         pricePerLiter: Number(form.pricePerLiter),
       };
+
+      if (internalNote && internalNote.trim() !== "") {
+        payload.notes = internalNote;
+      }
       const response = await fetch(
         mode === "create" ? "/api/customers" : `/api/customers/${customerCode}`,
         {
@@ -220,8 +225,10 @@ export function CustomerForm({
 
         <AdminField label="Internal note">
           <AdminTextarea
-            value={form.notes}
-            onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+            value={form.internalNote}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, internalNote: event.target.value }))
+            }
           />
         </AdminField>
 

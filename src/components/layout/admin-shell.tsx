@@ -29,6 +29,7 @@ type AdminShellProps = {
   locale: string;
   title: string;
   subtitle: string;
+  hideHero?: boolean;
 };
 
 type NavKey =
@@ -39,13 +40,15 @@ type NavKey =
   | "calendar"
   | "billing"
   | "reports"
+  | "area-insights"
   | "purchases"
   | "areas"
   | "products";
 
 type NavItem = {
-  href: NavKey;
+  href: NavKey | "reports/area-insights";
   icon: typeof Home;
+  labelKey?: string;
 };
 
 const navItems: NavItem[] = [
@@ -56,21 +59,28 @@ const navItems: NavItem[] = [
   { href: "calendar", icon: CalendarDays },
   { href: "billing", icon: CreditCard },
   { href: "reports", icon: ChartColumn },
+  { href: "reports/area-insights" as any, icon: NotebookText, labelKey: "areaInsights" },
   { href: "purchases", icon: ShoppingCart },
   { href: "areas", icon: Building2 },
   { href: "products", icon: Package2 },
 ];
 
-export function AdminShell({ children, locale, title, subtitle }: AdminShellProps) {
+export function AdminShell({
+  children,
+  locale,
+  title,
+  subtitle,
+  hideHero,
+}: AdminShellProps) {
   const pathname = usePathname();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const tShell = useTranslations("admin.shell");
   const tNav = useTranslations("admin.nav");
 
-  const renderNavItem = ({ href, icon: Icon }: NavItem) => {
+  const renderNavItem = ({ href, icon: Icon, labelKey }: NavItem) => {
     const target = `/${locale}/admin/${href}`;
     const isActive = pathname === target || pathname.startsWith(`${target}/`);
-    const label = tNav(href);
+    const label = labelKey ? tNav(labelKey) : tNav(href);
 
     return (
       <Link
@@ -231,26 +241,30 @@ export function AdminShell({ children, locale, title, subtitle }: AdminShellProp
           </header>
 
           <main className="space-y-4 pb-4">
-            <section className="admin-panel rounded-[32px] px-5 py-5 sm:px-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--admin-muted)]">
-                    {tShell("heroEyebrow")}
-                  </p>
-                  <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--admin-text)] sm:text-3xl">
-                    {title}
-                  </h1>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--admin-muted)] sm:text-[15px]">
-                    {subtitle}
-                  </p>
+            {!hideHero && (
+              <section className="admin-panel rounded-[32px] px-5 py-5 sm:px-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--admin-muted)]">
+                      {tShell("heroEyebrow")}
+                    </p>
+                    <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--admin-text)] sm:text-3xl">
+                      {title}
+                    </h1>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--admin-muted)] sm:text-[15px]">
+                      {subtitle}
+                    </p>
+                  </div>
+                  <div className="admin-panel-muted rounded-[22px] px-4 py-3 text-sm text-[var(--admin-muted)]">
+                    <span className="font-semibold text-[var(--admin-text)]">
+                      {tShell("liveMode")}
+                    </span>
+                    <span className="mx-2 text-[var(--admin-border)]">•</span>
+                    <span>{tShell("superAdminPreview")}</span>
+                  </div>
                 </div>
-                <div className="admin-panel-muted rounded-[22px] px-4 py-3 text-sm text-[var(--admin-muted)]">
-                  <span className="font-semibold text-[var(--admin-text)]">{tShell("liveMode")}</span>
-                  <span className="mx-2 text-[var(--admin-border)]">•</span>
-                  <span>{tShell("superAdminPreview")}</span>
-                </div>
-              </div>
-            </section>
+              </section>
+            )}
 
             {children}
           </main>

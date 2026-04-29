@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Check, Filter, MapPin, Pause, Play, X } from "lucide-react";
+import { CalendarDays, Check, Filter, MapPin, Minus, Pause, Play, Plus, X } from "lucide-react";
 import {
   AdminBadge,
   AdminButton,
@@ -69,11 +69,32 @@ export function DeliveryOperationsPanel({
   startRun,
 }: DeliveryOperationsPanelProps) {
   const router = useRouter();
+  const [localEntries, setLocalEntries] = useState(entries);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [isLocationOpen, setIsLocationOpen] = useState(startRun);
   const [locationOptions, setLocationOptions] = useState(areas);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const [locationError, setLocationError] = useState("");
+
+  const STATUS_PRIORITY: Record<string, number> = {
+    PENDING: 1,
+    PAUSED: 2,
+    SKIPPED: 3,
+    DELIVERED: 4,
+  };
+
+  useEffect(() => {
+    setLocalEntries(entries);
+  }, [entries]);
+
+  const sortedEntries = useMemo(() => {
+    return [...localEntries].sort((a, b) => {
+      const pA = STATUS_PRIORITY[a.status] || 5;
+      const pB = STATUS_PRIORITY[b.status] || 5;
+      if (pA !== pB) return pA - pB;
+      return a.customerName.localeCompare(b.customerName);
+    });
+  }, [localEntries]);
 
   const selectedAreaName = useMemo(
     () => areas.find((area) => area.code === filters.area)?.name || "All locations",
@@ -133,18 +154,70 @@ export function DeliveryOperationsPanel({
   async function saveStatus(
     customerCode: string,
     type: "DELIVERED" | "SKIPPED" | "PAUSED",
+    currentStatus: string
   ) {
+    const isTogglingOff = currentStatus === type;
     setLoadingKey(`${customerCode}:${type}`);
 
+    // Optimistic update
+    setLocalEntries((prev) =>
+      prev.map((entry) =>
+        entry.customerCode === customerCode 
+          ? { ...entry, status: isTogglingOff ? "PENDING" : type } 
+          : entry
+      )
+    );
+
     try {
-      await fetch("/api/deliveries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerCode, type, date: filters.date }),
-      });
+      if (isTogglingOff) {
+        await fetch(`/api/deliveries?customerCode=${customerCode}&date=${filters.date}`, {
+          method: "DELETE",
+        });
+      } else {
+        await fetch("/api/deliveries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customerCode, type, date: filters.date }),
+        });
+      }
       router.refresh();
+    } catch (error) {
+      console.error("Failed to save status:", error);
+      setLocalEntries(entries);
     } finally {
       setLoadingKey(null);
+    }
+  }
+
+  async function updateCustomerQuantity(customerCode: string, newQuantity: number) {
+    if (newQuantity < 0) return;
+
+    // Optimistic update
+    setLocalEntries((prev) =>
+      prev.map((entry) =>
+        entry.customerCode === customerCode
+          ? {
+              ...entry,
+              quantityLabel: `${newQuantity.toFixed(1)} L`,
+            }
+          : entry
+      )
+    );
+
+    try {
+      const response = await fetch(`/api/customers/${customerCode}/quantity`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantityLiters: newQuantity }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update quantity");
+      }
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      setLocalEntries(entries);
     }
   }
 
@@ -247,10 +320,12 @@ export function DeliveryOperationsPanel({
           </div>
         ) : null}
 
-        {entries.map((task) => (
+        {sortedEntries.map((task) => (
           <article
             key={task.customerCode}
-            className="admin-panel-muted rounded-[16px] px-3 py-2.5"
+            className={`admin-panel-muted rounded-[16px] px-3 py-2.5 transition-all duration-300 ${
+              task.status === "DELIVERED" ? "opacity-70" : "opacity-100"
+            }`}
           >
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -260,9 +335,32 @@ export function DeliveryOperationsPanel({
                   </h2>
                   <AdminBadge tone={getStatusTone(task.status)}>{task.status}</AdminBadge>
                 </div>
-                <p className="mt-0.5 text-xs font-medium text-[var(--admin-muted)]">
-                  {task.quantityLabel} · {task.route}
-                </p>
+                <div className="mt-1 flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const current = parseFloat(task.quantityLabel);
+                      updateCustomerQuantity(task.customerCode, Math.max(0, current - 0.5));
+                    }}
+                    className="flex h-6 w-6 items-center justify-center rounded-md border border-[var(--admin-border)] bg-white text-[var(--admin-text)] transition hover:bg-[var(--admin-panel-muted)] active:scale-95"
+                    aria-label="Decrease quantity"
+                  >
+                    <Minus className="h-3 w-3" />
+                  </button>
+                  <p className="min-w-[3rem] text-center text-xs font-bold text-[var(--admin-primary-strong)]">
+                    {task.quantityLabel}
+                  </p>
+                  <button
+                    onClick={() => {
+                      const current = parseFloat(task.quantityLabel);
+                      updateCustomerQuantity(task.customerCode, current + 0.5);
+                    }}
+                    className="flex h-6 w-6 items-center justify-center rounded-md border border-[var(--admin-border)] bg-white text-[var(--admin-text)] transition hover:bg-[var(--admin-panel-muted)] active:scale-95"
+                    aria-label="Increase quantity"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                  <span className="text-[10px] text-[var(--admin-muted)]">· {task.route}</span>
+                </div>
                 {task.note ? (
                   <p className="mt-1 truncate text-xs text-[var(--admin-muted)]">{task.note}</p>
                 ) : null}
@@ -282,9 +380,11 @@ export function DeliveryOperationsPanel({
                 </div>
                 <button
                   type="button"
-                  onClick={() => saveStatus(task.customerCode, "DELIVERED")}
+                  onClick={() => saveStatus(task.customerCode, "DELIVERED", task.status)}
                   disabled={loadingKey !== null}
-                  className="admin-primary-button h-9 w-9 justify-center p-0 text-sm disabled:opacity-60"
+                  className={`admin-primary-button h-9 w-9 justify-center p-0 text-sm disabled:opacity-60 ${
+                    task.status === "DELIVERED" ? "ring-2 ring-offset-2 ring-[var(--admin-primary-strong)]" : ""
+                  }`}
                   aria-label={`Mark ${task.customerName} delivered`}
                   title="Delivered"
                 >
@@ -292,9 +392,11 @@ export function DeliveryOperationsPanel({
                 </button>
                 <button
                   type="button"
-                  onClick={() => saveStatus(task.customerCode, "SKIPPED")}
+                  onClick={() => saveStatus(task.customerCode, "SKIPPED", task.status)}
                   disabled={loadingKey !== null}
-                  className="admin-secondary-button h-9 w-9 justify-center p-0 text-sm disabled:opacity-60"
+                  className={`admin-secondary-button h-9 w-9 justify-center p-0 text-sm disabled:opacity-60 ${
+                    task.status === "SKIPPED" ? "ring-2 ring-offset-2 ring-red-500" : ""
+                  }`}
                   aria-label={`Skip ${task.customerName}`}
                   title="Skip"
                 >
@@ -302,9 +404,11 @@ export function DeliveryOperationsPanel({
                 </button>
                 <button
                   type="button"
-                  onClick={() => saveStatus(task.customerCode, "PAUSED")}
+                  onClick={() => saveStatus(task.customerCode, "PAUSED", task.status)}
                   disabled={loadingKey !== null}
-                  className="admin-outline-button h-9 w-9 justify-center p-0 text-sm disabled:opacity-60"
+                  className={`admin-outline-button h-9 w-9 justify-center p-0 text-sm disabled:opacity-60 ${
+                    task.status === "PAUSED" ? "ring-2 ring-offset-2 ring-yellow-500" : ""
+                  }`}
                   aria-label={`Pause ${task.customerName}`}
                   title="Pause"
                 >

@@ -126,3 +126,45 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    await connectToDatabase();
+    const { searchParams } = new URL(request.url);
+    const customerCode = searchParams.get("customerCode");
+    const dateStr = searchParams.get("date");
+
+    if (!customerCode) {
+      return NextResponse.json({ error: "Customer code is required" }, { status: 400 });
+    }
+
+    const customer = await CustomerProfile.findOne({ customerCode }).lean();
+    if (!customer) {
+      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+    }
+
+    const targetDate = dateStr ? new Date(dateStr) : new Date();
+    const dayStart = new Date(targetDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(targetDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    await Promise.all([
+      Delivery.deleteOne({
+        customerId: customer._id,
+        date: { $gte: dayStart, $lte: dayEnd },
+      }),
+      DeliveryException.deleteOne({
+        customerId: customer._id,
+        date: { $gte: dayStart, $lte: dayEnd },
+      }),
+    ]);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to reset delivery" },
+      { status: 500 },
+    );
+  }
+}
