@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Check, Filter, MapPin, Minus, Pause, Play, Plus, X } from "lucide-react";
+import { CalendarDays, Check, Filter, MapPin, Minus, Pause, Play, X } from "lucide-react";
 import {
   AdminBadge,
   AdminButton,
@@ -11,7 +11,7 @@ import {
   AdminInput,
   AdminSelect,
 } from "@/components/layout/admin-ui";
-import { formatCurrencyINR } from "@/lib/utils";
+import { cn, formatCurrencyINR } from "@/lib/utils";
 
 type DeliveryStatus = "ALL" | "DELIVERED" | "SKIPPED" | "PAUSED" | "PENDING";
 
@@ -20,10 +20,12 @@ type DeliveryEntry = {
   customerName: string;
   quantityLabel: string;
   status: Exclude<DeliveryStatus, "ALL">;
-  dueAmount: number;
   route: string;
   areaCode: string;
   note: string;
+  baseQuantity: number;
+  extraQuantity: number;
+  finalQuantity: number;
 };
 
 type DeliveryOperationsPanelProps = {
@@ -153,19 +155,26 @@ export function DeliveryOperationsPanel({
 
   async function saveStatus(
     customerCode: string,
-    type: "DELIVERED" | "SKIPPED" | "PAUSED",
+    type: "DELIVERED" | "SKIPPED" | "PAUSED" | "EXTRA" | "RESET",
     currentStatus: string
   ) {
-    const isTogglingOff = currentStatus === type;
+    const isTogglingOff = type === "RESET" || currentStatus === type;
+    const finalType = type === "EXTRA" ? "DELIVERED" : type;
     setLoadingKey(`${customerCode}:${type}`);
 
     // Optimistic update
     setLocalEntries((prev) =>
-      prev.map((entry) =>
-        entry.customerCode === customerCode 
-          ? { ...entry, status: isTogglingOff ? "PENDING" : type } 
-          : entry
-      )
+      prev.map((entry) => {
+        if (entry.customerCode !== customerCode) return entry;
+        
+        if (type === "RESET") {
+          return { ...entry, status: "PENDING", extraQuantity: 0 };
+        }
+        if (type === "EXTRA") {
+          return { ...entry, status: "DELIVERED", extraQuantity: (entry.extraQuantity || 0) + 1 };
+        }
+        return { ...entry, status: isTogglingOff ? "PENDING" : type };
+      })
     );
 
     try {
@@ -174,10 +183,16 @@ export function DeliveryOperationsPanel({
           method: "DELETE",
         });
       } else {
+        const body: any = { customerCode, type: finalType, date: filters.date };
+        if (type === "EXTRA") {
+          const currentEntry = localEntries.find(e => e.customerCode === customerCode);
+          body.extraQuantity = (currentEntry?.extraQuantity || 0) + 1;
+        }
+        
         await fetch("/api/deliveries", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ customerCode, type, date: filters.date }),
+          body: JSON.stringify(body),
         });
       }
       router.refresh();
@@ -189,57 +204,61 @@ export function DeliveryOperationsPanel({
     }
   }
 
-  async function updateCustomerQuantity(customerCode: string, newQuantity: number) {
-    if (newQuantity < 0) return;
+  async function markAllDelivered() {
+    const pending = localEntries.filter(e => e.status === "PENDING");
+    if (pending.length === 0) return;
 
+    setLoadingKey("all:DELIVERED");
+    
     // Optimistic update
-    setLocalEntries((prev) =>
-      prev.map((entry) =>
-        entry.customerCode === customerCode
-          ? {
-              ...entry,
-              quantityLabel: `${newQuantity.toFixed(1)} L`,
-            }
-          : entry
-      )
-    );
+    setLocalEntries(prev => prev.map(e => e.status === "PENDING" ? { ...e, status: "DELIVERED" } : e));
 
     try {
-      const response = await fetch(`/api/customers/${customerCode}/quantity`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantityLiters: newQuantity }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update quantity");
-      }
+      await Promise.all(pending.map(e => 
+        fetch("/api/deliveries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customerCode: e.customerCode, type: "DELIVERED", date: filters.date }),
+        })
+      ));
       router.refresh();
     } catch (error) {
       console.error(error);
       setLocalEntries(entries);
+    } finally {
+      setLoadingKey(null);
     }
   }
 
   return (
-    <AdminCard className="space-y-5">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <AdminCard className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-[var(--admin-primary-strong)]" />
-            <h2 className="text-lg font-semibold text-[var(--admin-text)]">Delivery filters</h2>
+            <Filter className="h-5 w-5 text-[var(--admin-primary-strong)]" />
+            <h2 className="text-xl font-bold text-[var(--admin-text)] tracking-tight">Delivery Run</h2>
           </div>
-          <p className="mt-1 text-sm text-[var(--admin-muted)]">
-            {selectedAreaName} · {counts.total} customers · {counts.pending} pending
+          <p className="mt-1 text-sm text-[var(--admin-muted)] font-medium">
+            {selectedAreaName} · <span className="text-[var(--admin-text)] font-bold">{counts.pending}</span> pending of {counts.total}
           </p>
         </div>
-        <AdminButton onClick={openLocationSelector} className="w-full sm:w-auto">
-          <Play className="h-4 w-4" />
-          Start Morning Run
-        </AdminButton>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <AdminButton 
+            variant="secondary"
+            onClick={markAllDelivered} 
+            disabled={counts.pending === 0 || loadingKey !== null}
+            className="w-full sm:w-auto"
+          >
+            {loadingKey === "all:DELIVERED" ? "Processing..." : "Mark All Delivered"}
+          </AdminButton>
+          <AdminButton onClick={openLocationSelector} className="w-full sm:w-auto shadow-lg shadow-blue-100">
+            <Play className="h-4 w-4" />
+            {filters.area ? "Change Route" : "Start Route"}
+          </AdminButton>
+        </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3 bg-white/50 p-4 rounded-[24px] border border-[var(--admin-border)]">
         <AdminField label="Date">
           <div className="relative">
             <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
@@ -247,14 +266,15 @@ export function DeliveryOperationsPanel({
               type="date"
               value={filters.date}
               onChange={(event) => updateFilters({ date: event.target.value })}
-              className="pl-10"
+              className="pl-10 h-11 rounded-xl"
             />
           </div>
         </AdminField>
-        <AdminField label="Status">
+        <AdminField label="Status Filter">
           <AdminSelect
             value={filters.status}
             onChange={(event) => updateFilters({ status: event.target.value as DeliveryStatus })}
+            className="h-11 rounded-xl"
           >
             {statusOptions.map((status) => (
               <option key={status.value} value={status.value}>
@@ -263,10 +283,11 @@ export function DeliveryOperationsPanel({
             ))}
           </AdminSelect>
         </AdminField>
-        <AdminField label="Location">
+        <AdminField label="Route Selection">
           <AdminSelect
             value={filters.area}
             onChange={(event) => updateFilters({ area: event.target.value })}
+            className="h-11 rounded-xl"
           >
             <option value="">All locations</option>
             {areas.map((area) => (
@@ -279,145 +300,154 @@ export function DeliveryOperationsPanel({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-4">
-        <div className="admin-panel-muted rounded-[16px] px-3 py-3">
-          <p className="text-xs font-semibold text-[var(--admin-muted)]">Delivered</p>
-          <p className="mt-1 text-2xl font-semibold text-[var(--admin-text)]">{counts.delivered}</p>
+        <div className="bg-emerald-50/50 border border-emerald-100 rounded-[22px] px-4 py-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Delivered</p>
+          <p className="mt-1 text-2xl font-black text-emerald-700">{counts.delivered}</p>
         </div>
-        <div className="admin-panel-muted rounded-[16px] px-3 py-3">
-          <p className="text-xs font-semibold text-[var(--admin-muted)]">Skipped</p>
-          <p className="mt-1 text-2xl font-semibold text-[var(--admin-text)]">{counts.skipped}</p>
+        <div className="bg-rose-50/50 border border-rose-100 rounded-[22px] px-4 py-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-rose-600">Skipped</p>
+          <p className="mt-1 text-2xl font-black text-rose-700">{counts.skipped}</p>
         </div>
-        <div className="admin-panel-muted rounded-[16px] px-3 py-3">
-          <p className="text-xs font-semibold text-[var(--admin-muted)]">Paused</p>
-          <p className="mt-1 text-2xl font-semibold text-[var(--admin-text)]">{counts.paused}</p>
+        <div className="bg-amber-50/50 border border-amber-100 rounded-[22px] px-4 py-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Paused</p>
+          <p className="mt-1 text-2xl font-black text-amber-700">{counts.paused}</p>
         </div>
-        <div className="admin-panel-muted rounded-[16px] px-3 py-3">
-          <p className="text-xs font-semibold text-[var(--admin-muted)]">Pending</p>
-          <p className="mt-1 text-2xl font-semibold text-[var(--admin-text)]">{counts.pending}</p>
+        <div className="bg-blue-50/50 border border-blue-100 rounded-[22px] px-4 py-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Pending</p>
+          <p className="mt-1 text-2xl font-black text-blue-700">{counts.pending}</p>
         </div>
       </div>
 
-      {counts.total > 0 && counts.delivered + counts.skipped + counts.paused === 0 ? (
-        <div className="rounded-[18px] border border-[var(--admin-border)] bg-white px-4 py-3 text-sm text-[var(--admin-muted)]">
-          No saved delivery records for this date yet. Pending customers are ready for marking.
-        </div>
-      ) : null}
-
-      <div className="max-h-[72vh] space-y-2 overflow-y-auto pr-1">
+      <div className="max-h-[72vh] space-y-3 overflow-y-auto pr-1 custom-scrollbar">
         {entries.length === 0 ? (
-          <div className="admin-panel-muted rounded-[20px] px-4 py-8 text-center">
-            <MapPin className="mx-auto h-8 w-8 text-[var(--admin-primary-strong)]" />
-            <h3 className="mt-3 text-base font-semibold text-[var(--admin-text)]">
+          <div className="admin-panel-muted rounded-[24px] px-4 py-12 text-center border-2 border-dashed border-gray-200">
+            <MapPin className="mx-auto h-10 w-10 text-[var(--admin-primary-strong)] opacity-50" />
+            <h3 className="mt-4 text-lg font-bold text-[var(--admin-text)]">
               {counts.total === 0 && filters.area
-                ? "No customers in this location"
-                : "No deliveries match these filters"}
+                ? "No customers on this route"
+                : "No matching deliveries"}
             </h3>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--admin-muted)]">
-              {counts.total === 0 && filters.area
-                ? "Choose another location or add customers with this area mapping."
-                : "Try All status, another date, or a different location."}
+            <p className="mx-auto mt-2 max-w-xs text-sm text-[var(--admin-muted)]">
+              Check filters or select another location to start marking.
             </p>
           </div>
         ) : null}
 
-        {sortedEntries.map((task) => (
-          <article
-            key={task.customerCode}
-            className={`admin-panel-muted rounded-[16px] px-3 py-2.5 transition-all duration-300 ${
-              task.status === "DELIVERED" ? "opacity-70" : "opacity-100"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h2 className="truncate text-sm font-semibold text-[var(--admin-text)]">
-                    {task.customerName}
-                  </h2>
-                  <AdminBadge tone={getStatusTone(task.status)}>{task.status}</AdminBadge>
-                </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      const current = parseFloat(task.quantityLabel);
-                      updateCustomerQuantity(task.customerCode, Math.max(0, current - 0.5));
-                    }}
-                    className="flex h-6 w-6 items-center justify-center rounded-md border border-[var(--admin-border)] bg-white text-[var(--admin-text)] transition hover:bg-[var(--admin-panel-muted)] active:scale-95"
-                    aria-label="Decrease quantity"
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <p className="min-w-[3rem] text-center text-xs font-bold text-[var(--admin-primary-strong)]">
-                    {task.quantityLabel}
-                  </p>
-                  <button
-                    onClick={() => {
-                      const current = parseFloat(task.quantityLabel);
-                      updateCustomerQuantity(task.customerCode, current + 0.5);
-                    }}
-                    className="flex h-6 w-6 items-center justify-center rounded-md border border-[var(--admin-border)] bg-white text-[var(--admin-text)] transition hover:bg-[var(--admin-panel-muted)] active:scale-95"
-                    aria-label="Increase quantity"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
-                  <span className="text-[10px] text-[var(--admin-muted)]">· {task.route}</span>
-                </div>
-                {task.note ? (
-                  <p className="mt-1 truncate text-xs text-[var(--admin-muted)]">{task.note}</p>
-                ) : null}
-              </div>
+        {sortedEntries.map((task) => {
+          const isDelivered = task.status === "DELIVERED";
+          const isSkipped = task.status === "SKIPPED";
+          const isPaused = task.status === "PAUSED";
+          const isPending = task.status === "PENDING";
 
-              <div className="flex shrink-0 items-center gap-2">
-                <div className="w-[78px] text-right">
-                  <p
-                    className={
-                      task.dueAmount > 500
-                        ? "text-sm font-bold text-[#d14646]"
-                        : "text-sm font-semibold text-[var(--admin-text)]"
-                    }
-                  >
-                    {formatCurrencyINR(task.dueAmount)}
-                  </p>
+          return (
+            <article
+              key={task.customerCode}
+              className={cn(
+                "admin-panel rounded-[24px] px-4 py-4 transition-all duration-300 border border-transparent",
+                isDelivered ? "bg-[#f0fdf4] border-emerald-100/50" : "bg-white hover:border-gray-200",
+                !isPending && "opacity-90"
+              )}
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                {/* LEFT: Customer Info */}
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className={cn(
+                    "h-12 w-12 shrink-0 flex items-center justify-center rounded-2xl transition-colors",
+                    isDelivered ? "bg-emerald-100 text-emerald-600" :
+                    isSkipped ? "bg-rose-100 text-rose-600" :
+                    isPaused ? "bg-amber-100 text-amber-600" : "bg-blue-50 text-blue-600"
+                  )}>
+                    {isDelivered ? <Check className="h-6 w-6" /> :
+                     isSkipped ? <X className="h-6 w-6" /> :
+                     isPaused ? <Pause className="h-6 w-6" /> : <MapPin className="h-6 w-6" />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h2 className="truncate text-[15px] font-black text-[var(--admin-text)]">
+                        {task.customerName}
+                      </h2>
+                      <AdminBadge tone={getStatusTone(task.status)} className="text-[10px] font-black uppercase h-5 px-2">
+                        {task.status}
+                      </AdminBadge>
+                    </div>
+                    <p className="mt-0.5 text-xs font-bold text-gray-500 truncate uppercase tracking-tight">
+                      {task.route} • <span className="text-[var(--admin-primary-strong)]">{task.quantityLabel}</span>
+                    </p>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => saveStatus(task.customerCode, "DELIVERED", task.status)}
-                  disabled={loadingKey !== null}
-                  className={`admin-primary-button h-9 w-9 justify-center p-0 text-sm disabled:opacity-60 ${
-                    task.status === "DELIVERED" ? "ring-2 ring-offset-2 ring-[var(--admin-primary-strong)]" : ""
-                  }`}
-                  aria-label={`Mark ${task.customerName} delivered`}
-                  title="Delivered"
-                >
-                  {loadingKey === `${task.customerCode}:DELIVERED` ? "..." : <Check className="h-4 w-4" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => saveStatus(task.customerCode, "SKIPPED", task.status)}
-                  disabled={loadingKey !== null}
-                  className={`admin-secondary-button h-9 w-9 justify-center p-0 text-sm disabled:opacity-60 ${
-                    task.status === "SKIPPED" ? "ring-2 ring-offset-2 ring-red-500" : ""
-                  }`}
-                  aria-label={`Skip ${task.customerName}`}
-                  title="Skip"
-                >
-                  {loadingKey === `${task.customerCode}:SKIPPED` ? "..." : <X className="h-4 w-4" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => saveStatus(task.customerCode, "PAUSED", task.status)}
-                  disabled={loadingKey !== null}
-                  className={`admin-outline-button h-9 w-9 justify-center p-0 text-sm disabled:opacity-60 ${
-                    task.status === "PAUSED" ? "ring-2 ring-offset-2 ring-yellow-500" : ""
-                  }`}
-                  aria-label={`Pause ${task.customerName}`}
-                  title="Pause"
-                >
-                  {loadingKey === `${task.customerCode}:PAUSED` ? "..." : <Pause className="h-4 w-4" />}
-                </button>
+
+                {/* CENTER: Notes (Only if exists) */}
+                <div className="flex-1 hidden md:flex items-center px-4">
+                  {task.note && (
+                    <p className="text-xs italic text-gray-400 font-medium truncate max-w-[200px]">
+                      "{task.note}"
+                    </p>
+                  )}
+                </div>
+
+                {/* RIGHT: Delivery Actions */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => saveStatus(task.customerCode, isDelivered ? "RESET" : "DELIVERED", task.status)}
+                    disabled={loadingKey !== null}
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-full transition-all active:scale-90",
+                      isDelivered 
+                        ? "bg-[#22C55E] text-white shadow-md" 
+                        : "bg-green-50 text-[#22C55E] hover:bg-green-100"
+                    )}
+                    title={isDelivered ? "Undo Delivery" : "Mark Delivered"}
+                  >
+                    {loadingKey === `${task.customerCode}:DELIVERED` ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <Check className="h-[22px] w-[22px] stroke-[3]" />
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => saveStatus(task.customerCode, isSkipped ? "RESET" : "SKIPPED", task.status)}
+                    disabled={loadingKey !== null}
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-full transition-all active:scale-90",
+                      isSkipped 
+                        ? "bg-[#EF4444] text-white shadow-md" 
+                        : "bg-red-50 text-[#EF4444] hover:bg-red-100"
+                    )}
+                    title={isSkipped ? "Undo Skip" : "Mark Skipped"}
+                  >
+                    {loadingKey === `${task.customerCode}:SKIPPED` ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <X className="h-[22px] w-[22px] stroke-[3]" />
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => saveStatus(task.customerCode, isPaused ? "RESET" : "PAUSED", task.status)}
+                    disabled={loadingKey !== null}
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-full transition-all active:scale-90",
+                      isPaused 
+                        ? "bg-[#F59E0B] text-white shadow-md" 
+                        : "bg-amber-50 text-[#F59E0B] hover:bg-amber-100"
+                    )}
+                    title={isPaused ? "Undo Pause" : "Mark Paused"}
+                  >
+                    {loadingKey === `${task.customerCode}:PAUSED` ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <Pause className="h-[22px] w-[22px] stroke-[3]" />
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </div>
 
       {isLocationOpen ? (

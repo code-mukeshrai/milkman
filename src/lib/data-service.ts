@@ -362,6 +362,7 @@ function buildCustomerEntities(base: Awaited<ReturnType<typeof getBaseData>>) {
         totalDays,
         monthlyLiters: billableDays * quantity,
       },
+      lastPaymentDate: payments.length > 0 ? new Date(Math.max(...payments.map(p => new Date(p.date).getTime()))) : null,
     };
   });
 }
@@ -396,6 +397,8 @@ export async function getCustomerListData() {
         notes: entry.profile.notes || "",
         deliverySlot: "Morning",
         deliveryStatus,
+        extraQuantity: delivery?.extraQuantity || 0,
+        lastPaymentDate: entry.lastPaymentDate,
         status:
           entry.profile.isActive === false || entry.user?.status === "INACTIVE"
             ? "INACTIVE"
@@ -407,9 +410,11 @@ export async function getCustomerListData() {
     .sort((a, b) => b.due - a.due);
 }
 
-export async function getCustomerDetailData(customerCode: string) {
+export async function getCustomerDetailData(identifier: string) {
   const customers = await getCustomerListData();
-  const customer = customers.find((entry) => entry.customerCode === customerCode);
+  const customer = customers.find(
+    (entry) => entry.customerCode === identifier || entry.id === identifier
+  );
 
   if (!customer) {
     return null;
@@ -417,7 +422,7 @@ export async function getCustomerDetailData(customerCode: string) {
 
   const base = await getBaseData();
   const entity = buildCustomerEntities(base).find(
-    (entry) => entry.profile.customerCode === customerCode,
+    (entry) => entry.profile.customerCode === identifier || String(entry.profile._id) === identifier,
   );
 
   if (!entity) {
@@ -683,7 +688,7 @@ export async function getAdminCalendarData(filters?: {
     const date = new Date(base.referenceDate.getFullYear(), base.referenceDate.getMonth(), day);
     const entries = base.exceptionsMonth.filter(
       (exception) => toDate(exception.date)?.toDateString() === date.toDateString() &&
-      (!filters?.areaCode || entities.some(e => String(e.profile._id) === String(exception.customerId)))
+        (!filters?.areaCode || entities.some(e => String(e.profile._id) === String(exception.customerId)))
     );
     const pausedCount = entries.filter((entry) => entry.type === "PAUSE").length;
     const skippedCount = entries.filter((entry) => entry.type === "SKIP").length;
@@ -706,10 +711,10 @@ export async function getAdminCalendarData(filters?: {
       liters,
       status:
         pausedCount > 0
-            ? "PAUSED"
-            : skippedCount > 0
-              ? "SKIPPED"
-              : "DELIVERED" as CalendarStatus,
+          ? "PAUSED"
+          : skippedCount > 0
+            ? "SKIPPED"
+            : "DELIVERED" as CalendarStatus,
       deliveredCount,
       pausedCount,
       skippedCount,
@@ -995,13 +1000,13 @@ export async function getPurchaseLedgerData() {
             .map((entry) => formatDateLabel(entry.date)),
         ).size > 0
           ? base.purchasesMonth
+            .filter((entry) => entry.productCategory === "MILK")
+            .reduce((total, entry) => total + entry.quantity, 0) /
+          new Set(
+            base.purchasesMonth
               .filter((entry) => entry.productCategory === "MILK")
-              .reduce((total, entry) => total + entry.quantity, 0) /
-            new Set(
-              base.purchasesMonth
-                .filter((entry) => entry.productCategory === "MILK")
-                .map((entry) => formatDateLabel(entry.date)),
-            ).size
+              .map((entry) => formatDateLabel(entry.date)),
+          ).size
           : 0,
       unpaidEntries: base.purchasesMonth.filter((entry) => entry.paymentStatus !== "PAID").length,
     },

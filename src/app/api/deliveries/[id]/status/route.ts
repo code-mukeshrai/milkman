@@ -11,7 +11,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const { status, date } = await request.json();
+    const { status, date, extraQuantity } = await request.json();
 
     if (!status) {
       return NextResponse.json({ error: "Status is required" }, { status: 400 });
@@ -30,15 +30,26 @@ export async function PATCH(
     const dayEnd = new Date(targetDate);
     dayEnd.setHours(23, 59, 59, 999);
 
-    console.log(`[PATCH Delivery] ID: ${id}, Status: ${status}, Date: ${targetDate.toISOString()}`);
+    console.log(`[PATCH Delivery] ID: ${id}, Status: ${status}, Extra: ${extraQuantity}, Date: ${targetDate.toISOString()}`);
 
     const activePlan = await MilkPlan.findOne({ customerId: customer._id, isActive: true })
       .sort({ startDate: -1 })
       .lean<{ quantityLiters?: number; pricePerLiter?: number } | null>();
-    
+
     const baseQuantity = activePlan?.quantityLiters || 0;
 
-    if (status === "DELIVERED") {
+    if (status === "PENDING") {
+      await Promise.all([
+        Delivery.deleteOne({
+          customerId: customer._id,
+          date: { $gte: dayStart, $lte: dayEnd },
+        }),
+        DeliveryException.deleteOne({
+          customerId: customer._id,
+          date: { $gte: dayStart, $lte: dayEnd },
+        }),
+      ]);
+    } else if (status === "DELIVERED") {
       const delivery = (await Delivery.findOne({
         customerId: customer._id,
         date: { $gte: dayStart, $lte: dayEnd },
@@ -47,11 +58,13 @@ export async function PATCH(
         date: targetDate,
       });
 
+      const extra = typeof extraQuantity === "number" ? extraQuantity : 0;
+
       delivery.status = "DELIVERED";
-      delivery.quantityDelivered = baseQuantity;
+      delivery.quantityDelivered = baseQuantity + extra;
       delivery.baseQuantity = baseQuantity;
-      delivery.extraQuantity = 0;
-      delivery.finalQuantity = baseQuantity;
+      delivery.extraQuantity = extra;
+      delivery.finalQuantity = baseQuantity + extra;
       delivery.pricePerLiter = activePlan?.pricePerLiter || 0;
       await delivery.save();
 

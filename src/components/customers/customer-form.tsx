@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Minus, Plus } from "lucide-react";
 import {
   AdminButton,
   AdminCard,
@@ -61,6 +62,14 @@ export function CustomerForm({
   const [form, setForm] = useState(defaults);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  const updateQuantity = (delta: number) => {
+    setForm((prev) => {
+      const current = parseFloat(prev.quantityLiters) || 0;
+      const next = Math.max(0, current + delta);
+      return { ...prev, quantityLiters: String(next) };
+    });
+  };
 
   async function handleSubmit() {
     setIsSubmitting(true);
@@ -183,12 +192,29 @@ export function CustomerForm({
 
         <div className="grid gap-4 sm:grid-cols-4">
           <AdminField label="Milk quantity">
-            <AdminInput
-              value={form.quantityLiters}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, quantityLiters: event.target.value }))
-              }
-            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => updateQuantity(-0.5)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--admin-border)] bg-white text-[var(--admin-muted)] transition hover:bg-[var(--admin-panel-muted)] active:scale-95"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <AdminInput
+                className="text-center font-bold"
+                value={form.quantityLiters}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, quantityLiters: event.target.value }))
+                }
+              />
+              <button
+                type="button"
+                onClick={() => updateQuantity(0.5)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--admin-border)] bg-white text-[var(--admin-muted)] transition hover:bg-[var(--admin-panel-muted)] active:scale-95"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
           </AdminField>
           <AdminField label="Rate per liter">
             <AdminInput
