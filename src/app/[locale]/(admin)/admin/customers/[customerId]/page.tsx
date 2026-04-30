@@ -64,7 +64,7 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
             </div>
           </div>
           <Link
-            href={`/${locale}/admin/customers/${customer.customerCode}/edit`}
+            href={`/${locale}/admin/customers/${customer.id}/edit`}
             className="admin-outline-button px-4 py-3 text-sm font-semibold"
           >
             <FilePenLine className="h-4 w-4" />
@@ -170,7 +170,7 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
               {t("recordPayment")}
             </Link>
             <Link
-              href={`/${locale}/admin/customers/${customer.customerCode}/edit`}
+              href={`/${locale}/admin/customers/${customer.id}/edit`}
               className="admin-outline-button justify-center px-4 py-3 text-sm font-semibold"
             >
               {t("updateProfile")}

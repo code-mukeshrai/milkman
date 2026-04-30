@@ -17,11 +17,13 @@ export function CustomerList({ customers, locale }: CustomerListProps) {
   const t = useTranslations("admin.customers");
   const tCommon = useTranslations("common");
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [modalMode, setModalMode] = useState<'view' | 'details'>('view');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
-  const handleViewCustomer = (customer: any) => {
+  const handleViewCustomer = (customer: any, mode: 'view' | 'details' = 'view') => {
     setSelectedCustomer(customer);
+    setModalMode(mode);
     setIsModalOpen(true);
   };
 
@@ -62,7 +64,7 @@ export function CustomerList({ customers, locale }: CustomerListProps) {
             customer={customer}
             locale={locale}
             tDue={t("due")}
-            onView={() => handleViewCustomer(customer)}
+            onView={(mode) => handleViewCustomer(customer, mode)}
             isMenuOpen={openMenuId === customer.id}
             setMenuOpen={(isOpen) => setOpenMenuId(isOpen ? customer.id : null)}
           />
@@ -74,6 +76,7 @@ export function CustomerList({ customers, locale }: CustomerListProps) {
         onClose={() => setIsModalOpen(false)}
         customer={selectedCustomer}
         locale={locale}
+        mode={modalMode}
       />
     </>
   );

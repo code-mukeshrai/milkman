@@ -29,7 +29,7 @@ export default async function EditCustomerPage({ params }: EditCustomerPageProps
       <AdminCard>
         <div className="flex items-center gap-3">
           <Link
-            href={`/${locale}/admin/customers/${customer.customerCode}`}
+            href={`/${locale}/admin/customers/${customer.id}`}
             className="admin-icon-button h-11 w-11"
           >
             <ChevronLeft className="h-5 w-5" />

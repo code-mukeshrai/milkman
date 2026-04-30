@@ -38,9 +38,16 @@ type CustomerDetailModalProps = {
     notes?: string;
   } | null;
   locale: string;
+  mode?: "view" | "details";
 };
 
-export function CustomerDetailModal({ isOpen, onClose, customer, locale }: CustomerDetailModalProps) {
+export function CustomerDetailModal({ 
+  isOpen, 
+  onClose, 
+  customer, 
+  locale,
+  mode = "details"
+}: CustomerDetailModalProps) {
   const [logs, setLogs] = useState<DeliveryLog[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -61,9 +68,18 @@ export function CustomerDetailModal({ isOpen, onClose, customer, locale }: Custo
   if (!customer) return null;
 
   return (
-    <AdminModal isOpen={isOpen} onClose={onClose} title="Customer Profile">
+    <AdminModal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      title={mode === "view" ? "Customer Preview" : "Customer Profile"}
+    >
       <div className="space-y-6">
         {/* Basic Info */}
+        <div className="flex flex-col gap-1 mb-2">
+          <h2 className="text-xl font-black text-[var(--admin-text)] tracking-tight">{customer.name}</h2>
+          <p className="text-xs font-bold text-[var(--admin-muted)] uppercase tracking-widest">{customer.customerCode}</p>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="admin-panel-muted rounded-[24px] p-4">
             <div className="flex items-center gap-2 text-[var(--admin-muted)]">
@@ -72,44 +88,51 @@ export function CustomerDetailModal({ isOpen, onClose, customer, locale }: Custo
             </div>
             <p className="mt-2 text-base font-bold text-[var(--admin-text)]">{customer.phone}</p>
           </div>
-          <div className="admin-panel-muted rounded-[24px] p-4">
-            <div className="flex items-center gap-2 text-[var(--admin-muted)]">
-              <Building2 className="h-4 w-4" />
-              <span className="text-xs font-semibold uppercase tracking-wider">Area</span>
+          
+          {mode === "details" && (
+            <div className="admin-panel-muted rounded-[24px] p-4">
+              <div className="flex items-center gap-2 text-[var(--admin-muted)]">
+                <Building2 className="h-4 w-4" />
+                <span className="text-xs font-semibold uppercase tracking-wider">Area</span>
+              </div>
+              <p className="mt-2 text-base font-bold text-[var(--admin-text)]">
+                {customer.areaName} ({customer.areaCode})
+              </p>
             </div>
-            <p className="mt-2 text-base font-bold text-[var(--admin-text)]">
-              {customer.areaName} ({customer.areaCode})
-            </p>
-          </div>
+          )}
         </div>
 
-        <div className="admin-panel-muted rounded-[24px] p-4">
-          <div className="flex items-center gap-2 text-[var(--admin-muted)]">
-            <MapPin className="h-4 w-4" />
-            <span className="text-xs font-semibold uppercase tracking-wider">Address</span>
+        {mode === "details" && (
+          <div className="admin-panel-muted rounded-[24px] p-4">
+            <div className="flex items-center gap-2 text-[var(--admin-muted)]">
+              <MapPin className="h-4 w-4" />
+              <span className="text-xs font-semibold uppercase tracking-wider">Address</span>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-[var(--admin-text)]">{customer.address}</p>
           </div>
-          <p className="mt-2 text-sm leading-6 text-[var(--admin-text)]">{customer.address}</p>
-        </div>
+        )}
 
         <AdminDivider className="my-2" />
 
         {/* Financials & Plan */}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className={cn("grid gap-4", mode === "view" ? "sm:grid-cols-2" : "sm:grid-cols-3")}>
           <div className="rounded-[24px] bg-[var(--admin-primary-soft)] p-4">
             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--admin-muted)]">Milk Plan</p>
             <p className="mt-1 text-xl font-bold text-[var(--admin-text)]">{customer.quantityLabel}</p>
           </div>
-          <div className="rounded-[24px] bg-white border border-[var(--admin-border)] p-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--admin-muted)]">Rate</p>
-            <p className="mt-1 text-xl font-bold text-[var(--admin-text)]">{formatCurrencyINR(customer.rate)}</p>
-          </div>
+          {mode === "details" && (
+            <div className="rounded-[24px] bg-white border border-[var(--admin-border)] p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--admin-muted)]">Rate</p>
+              <p className="mt-1 text-xl font-bold text-[var(--admin-text)]">{formatCurrencyINR(customer.rate)}</p>
+            </div>
+          )}
           <div className="rounded-[24px] bg-white border border-[var(--admin-border)] p-4">
             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--admin-muted)]">Due Amount</p>
             <p className="mt-1 text-xl font-bold text-[#d14646]">{formatCurrencyINR(customer.due)}</p>
           </div>
         </div>
 
-        {customer.notes && (
+        {mode === "details" && customer.notes && (
           <div className="admin-panel-muted rounded-[24px] p-4">
             <div className="flex items-center gap-2 text-[var(--admin-muted)]">
               <WalletCards className="h-4 w-4" />
@@ -119,56 +142,60 @@ export function CustomerDetailModal({ isOpen, onClose, customer, locale }: Custo
           </div>
         )}
 
-        <AdminDivider className="my-2" />
+        {mode === "details" && (
+          <>
+            <AdminDivider className="my-2" />
 
-        {/* Delivery Logs */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="flex items-center gap-2 text-base font-bold text-[var(--admin-text)]">
-              <CalendarDays className="h-4 w-4 text-[var(--admin-primary)]" />
-              Recent Delivery Logs
-            </h3>
-          </div>
-          
-          <div className="space-y-2">
-            {isLoading ? (
-              <div className="py-8 text-center text-sm text-[var(--admin-muted)] animate-pulse">
-                Loading history...
+            {/* Delivery Logs */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="flex items-center gap-2 text-base font-bold text-[var(--admin-text)]">
+                  <CalendarDays className="h-4 w-4 text-[var(--admin-primary)]" />
+                  Recent Delivery Logs
+                </h3>
               </div>
-            ) : logs.length > 0 ? (
-              logs.map((log, index) => (
-                <div key={index} className="flex items-center justify-between rounded-[20px] bg-white border border-[var(--admin-border)] px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded-full",
-                      log.status === "DELIVERED" ? "bg-emerald-50 text-emerald-600" :
-                      log.status === "PAUSED" ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600"
-                    )}>
-                      {log.status === "DELIVERED" ? <CircleCheck className="h-5 w-5" /> :
-                       log.status === "PAUSED" ? <CirclePause className="h-5 w-5" /> : <CircleX className="h-5 w-5" />}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-[var(--admin-text)]">{log.dateLabel}</p>
-                      <p className="text-xs text-[var(--admin-muted)]">
-                        {log.status === "DELIVERED" ? `${log.finalQuantity} L delivered` : log.status}
-                      </p>
-                    </div>
+              
+              <div className="space-y-2">
+                {isLoading ? (
+                  <div className="py-8 text-center text-sm text-[var(--admin-muted)] animate-pulse">
+                    Loading history...
                   </div>
-                  <AdminBadge tone={
-                    log.status === "DELIVERED" ? "success" : 
-                    log.status === "PAUSED" ? "warning" : "danger"
-                  } className="text-[10px] uppercase">
-                    {log.status}
-                  </AdminBadge>
-                </div>
-              ))
-            ) : (
-              <div className="py-8 text-center text-sm text-[var(--admin-muted)] border-2 border-dashed border-[var(--admin-border)] rounded-[24px]">
-                No recent activity found.
+                ) : logs.length > 0 ? (
+                  logs.map((log, index) => (
+                    <div key={index} className="flex items-center justify-between rounded-[20px] bg-white border border-[var(--admin-border)] px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "flex h-9 w-9 items-center justify-center rounded-full",
+                          log.status === "DELIVERED" ? "bg-emerald-50 text-emerald-600" :
+                          log.status === "PAUSED" ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600"
+                        )}>
+                          {log.status === "DELIVERED" ? <CircleCheck className="h-5 w-5" /> :
+                           log.status === "PAUSED" ? <CirclePause className="h-5 w-5" /> : <CircleX className="h-5 w-5" />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-[var(--admin-text)]">{log.dateLabel}</p>
+                          <p className="text-xs text-[var(--admin-muted)]">
+                            {log.status === "DELIVERED" ? `${log.finalQuantity} L delivered` : log.status}
+                          </p>
+                        </div>
+                      </div>
+                      <AdminBadge tone={
+                        log.status === "DELIVERED" ? "success" : 
+                        log.status === "PAUSED" ? "warning" : "danger"
+                      } className="text-[10px] uppercase">
+                        {log.status}
+                      </AdminBadge>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-8 text-center text-sm text-[var(--admin-muted)] border-2 border-dashed border-[var(--admin-border)] rounded-[24px]">
+                    No recent activity found.
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          </>
+        )}
       </div>
     </AdminModal>
   );

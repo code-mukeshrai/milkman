@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { BarChart2, CircleCheck, Eye, FilePenLine, MoreVertical } from "lucide-react";
+import { BarChart2, Eye, FilePenLine, MoreVertical } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type CustomerCardActionsProps = {
   id: string;
   customerCode: string;
   locale: string;
-  onView?: () => void;
+  onView?: (mode: "view" | "details") => void;
   isMenuOpen?: boolean;
   setMenuOpen?: (isOpen: boolean) => void;
 };
@@ -20,11 +20,9 @@ export function CustomerCardActions({
   locale, 
   onView,
   isMenuOpen = false,
-  setMenuOpen
+  setMenuOpen,
 }: CustomerCardActionsProps) {
-  const [loading, setLoading] = useState<"SKIP" | "PAUSE" | "DELIVERED" | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -36,116 +34,55 @@ export function CustomerCardActions({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isMenuOpen, setMenuOpen]);
 
-  async function handleDeliveryAction(type: "SKIP" | "PAUSE" | "DELIVERED") {
-    const status = type === "SKIP" ? "SKIPPED" : type === "PAUSE" ? "PAUSED" : "DELIVERED";
-    console.log(`[DeliveryAction] Clickted ${status} for ${customerCode} (ID: ${id})`);
-    setLoading(type);
-    
-    try {
-      const response = await fetch(`/api/deliveries/${id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update status");
-      }
-
-      console.log(`[DeliveryAction] Success: ${customerCode} updated to ${status}`);
-      router.refresh();
-    } catch (error) {
-      console.error(`[DeliveryAction] Error:`, error);
-      alert("Failed to update delivery. Please try again.");
-    } finally {
-      setLoading(null);
-    }
-  }
-
   return (
-    <div className="flex items-center gap-1.5 sm:gap-2">
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); handleDeliveryAction("DELIVERED"); }}
-        disabled={loading !== null}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--admin-primary-strong)] text-white shadow-sm transition-all hover:scale-110 hover:bg-emerald-600 active:scale-95 disabled:opacity-50"
-        aria-label="Mark delivered"
-        title="Delivered"
-      >
-        {loading === "DELIVERED" ? "..." : <CircleCheck className="h-5 w-5" />}
-      </button>
-
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); handleDeliveryAction("SKIP"); }}
-        disabled={loading !== null}
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--admin-border)] bg-white text-base font-semibold shadow-sm transition-all hover:bg-red-50 hover:text-red-500 active:scale-95 disabled:opacity-50"
-        aria-label="Skip delivery"
-        title="Skip"
-      >
-        {loading === "SKIP" ? "..." : "❌"}
-      </button>
-
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); handleDeliveryAction("PAUSE"); }}
-        disabled={loading !== null}
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--admin-border)] bg-white text-base font-semibold shadow-sm transition-all hover:bg-slate-50 hover:text-slate-600 active:scale-95 disabled:opacity-50"
-        aria-label="Pause delivery"
-        title="Pause"
-      >
-        {loading === "PAUSE" ? "..." : "⏸"}
-      </button>
-
+    <div className="flex items-center gap-2">
       <div className="relative" ref={menuRef}>
         <button
           type="button"
           onClick={(e) => { 
             e.stopPropagation();
-            console.log(`[Menu] Opening menu for ${customerCode}`);
             setMenuOpen?.(!isMenuOpen); 
           }}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--admin-border)] bg-white text-[var(--admin-text)] shadow-sm transition-all hover:bg-[var(--admin-panel-muted)] active:scale-95"
+          className={cn(
+            "flex h-10 w-10 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-500 shadow-sm transition-all active:scale-90 hover:bg-gray-50",
+            isMenuOpen ? "bg-gray-100 border-gray-300" : ""
+          )}
           aria-label="More options"
         >
-          <MoreVertical className="h-4 w-4" />
+          <MoreVertical className="h-5 w-5" />
         </button>
 
         {isMenuOpen && (
-          <div 
-            className="absolute right-0 top-full z-[50] mt-2 w-44 overflow-hidden rounded-[16px] border border-[var(--admin-border)] bg-white shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => {
-                setMenuOpen?.(false);
-                onView?.();
-              }}
-              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] transition-colors hover:bg-[var(--admin-panel-muted)]"
+            <div 
+              className="absolute right-0 top-full z-[100] mt-2 w-48 origin-top-right overflow-hidden rounded-[22px] border border-gray-200 bg-white opacity-100 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in fade-in zoom-in duration-200"
+              style={{ top: "100%", backgroundColor: "white" }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <Eye className="h-4 w-4 text-[var(--admin-muted)]" />
-              View
-            </button>
-            <button
-              onClick={() => {
-                setMenuOpen?.(false);
-                onView?.();
-              }}
-              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] transition-colors hover:bg-[var(--admin-panel-muted)]"
-            >
-              <BarChart2 className="h-4 w-4 text-[var(--admin-muted)]" />
-              Details
-            </button>
-            <Link
-              href={`/${locale}/admin/customers/${customerCode}/edit`}
-              onClick={() => setMenuOpen?.(false)}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] transition-colors hover:bg-[var(--admin-panel-muted)]"
-            >
-              <FilePenLine className="h-4 w-4 text-[var(--admin-muted)]" />
-              Edit
-            </Link>
-          </div>
+              <div className="py-1.5 bg-white">
+                <button
+                  onClick={() => { setMenuOpen?.(false); onView?.("view"); }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  <Eye className="h-4.5 w-4.5 text-gray-400" />
+                  View
+                </button>
+                <button
+                  onClick={() => { setMenuOpen?.(false); onView?.("details"); }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  <BarChart2 className="h-4.5 w-4.5 text-gray-400" />
+                  Details
+                </button>
+                <Link
+                  href={`/${locale}/admin/customers/${id}/edit`}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                  onClick={() => setMenuOpen?.(false)}
+                >
+                  <FilePenLine className="h-4.5 w-4.5 text-gray-400" />
+                  Edit
+                </Link>
+              </div>
+            </div>
         )}
       </div>
     </div>
