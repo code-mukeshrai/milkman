@@ -19,7 +19,7 @@ export default async function NewCustomerPage({ params }: NewCustomerPageProps) 
   const checklistKeys = ["capturePhone", "setRate", "mapArea", "addLandmark"] as const;
 
   return (
-    <AdminShell locale={locale} title={t("newTitle")} subtitle={t("newSubtitle")}>
+    <AdminShell locale={locale} title={t("newTitle")} subtitle={t("newSubtitle")} hideHero={true}>
       <AdminCard>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">

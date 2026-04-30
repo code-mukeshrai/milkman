@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   Activity,
   BadgeIndianRupee,
@@ -8,6 +7,7 @@ import {
   MoveRight,
   Users,
 } from "lucide-react";
+import { Link } from "@/i18n/routing";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { AdminBadge, AdminCard, AdminStatCard } from "@/components/layout/admin-ui";
@@ -40,12 +40,12 @@ export default async function AdminDashboardPage({
     : 0;
   const inwardCoverage = adminCalendar.summary.totalLiters
     ? Math.min(
-        Math.round(
-          (purchaseLedger.summary.totalMilkInward / Math.max(adminCalendar.summary.totalLiters, 1)) *
-            100,
-        ),
+      Math.round(
+        (purchaseLedger.summary.totalMilkInward / Math.max(adminCalendar.summary.totalLiters, 1)) *
         100,
-      )
+      ),
+      100,
+    )
     : 0;
 
   const followUpCount = attentionCustomers.filter((entry) => entry.issue === "Payment overdue").length;
@@ -57,10 +57,10 @@ export default async function AdminDashboardPage({
   ];
 
   const quickActions: Array<[string, string]> = [
-    [t("quickActions.addCustomer"), `/${locale}/admin/customers/new`],
-    [t("quickActions.markDeliveries"), `/${locale}/admin/deliveries`],
-    [t("quickActions.recordPayment"), `/${locale}/admin/billing`],
-    [t("quickActions.capturePurchase"), `/${locale}/admin/purchases`],
+    [t("quickActions.addCustomer"), `/admin/customers/new`],
+    [t("quickActions.markDeliveries"), `/admin/deliveries`],
+    [t("quickActions.recordPayment"), `/admin/billing`],
+    [t("quickActions.capturePurchase"), `/admin/purchases`],
   ];
 
   const performanceCards: Array<[string, string, string]> = [
@@ -122,14 +122,14 @@ export default async function AdminDashboardPage({
             </p>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row">
               <Link
-                href={`/${locale}/admin/deliveries`}
+                href="/admin/deliveries?start=1"
                 className="admin-primary-button px-4 py-3 text-sm font-semibold"
               >
                 {t("hero.startRun")}
                 <MoveRight className="h-4 w-4" />
               </Link>
               <Link
-                href={`/${locale}/admin/purchases`}
+                href="/admin/purchases"
                 className="admin-secondary-button px-4 py-3 text-sm font-semibold"
               >
                 {t("hero.reviewLedger")}
@@ -247,7 +247,7 @@ export default async function AdminDashboardPage({
               <p className="mt-1 text-sm text-[var(--admin-muted)]">{t("performance.subtitle")}</p>
             </div>
             <Link
-              href={`/${locale}/admin/reports`}
+              href="/admin/reports"
               className="admin-outline-button px-4 py-3 text-sm font-semibold"
             >
               {t("performance.viewSummary")}

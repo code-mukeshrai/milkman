@@ -46,7 +46,7 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
   const statusTone = getStatusTone(customer.status);
 
   return (
-    <AdminShell locale={locale} title={customer.name} subtitle={t("detailSubtitle")}>
+    <AdminShell locale={locale} title={customer.name} subtitle={t("detailSubtitle")} hideHero={true}>
       <AdminCard>
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
@@ -64,7 +64,7 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
             </div>
           </div>
           <Link
-            href={`/${locale}/admin/customers/${customer.customerCode}/edit`}
+            href={`/${locale}/admin/customers/${customer.id}/edit`}
             className="admin-outline-button px-4 py-3 text-sm font-semibold"
           >
             <FilePenLine className="h-4 w-4" />
@@ -170,7 +170,7 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
               {t("recordPayment")}
             </Link>
             <Link
-              href={`/${locale}/admin/customers/${customer.customerCode}/edit`}
+              href={`/${locale}/admin/customers/${customer.id}/edit`}
               className="admin-outline-button justify-center px-4 py-3 text-sm font-semibold"
             >
               {t("updateProfile")}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoveRight, ShieldAlert } from "lucide-react";
+import { CalendarDays, Check, Filter, MapPin, Minus, Pause, Play, X } from "lucide-react";
 import {
   AdminBadge,
   AdminButton,
@@ -11,327 +11,501 @@ import {
   AdminInput,
   AdminSelect,
 } from "@/components/layout/admin-ui";
+import { cn, formatCurrencyINR } from "@/lib/utils";
+
+type DeliveryStatus = "ALL" | "DELIVERED" | "SKIPPED" | "PAUSED" | "PENDING";
 
 type DeliveryEntry = {
   customerCode: string;
   customerName: string;
   quantityLabel: string;
-  status: string;
-  note: string;
+  status: Exclude<DeliveryStatus, "ALL">;
   route: string;
   areaCode: string;
+  note: string;
   baseQuantity: number;
   extraQuantity: number;
   finalQuantity: number;
-  productItems: Array<{ productName?: string; quantity?: number; totalAmount?: number }>;
-};
-
-type ProductOption = {
-  code: string;
-  name: string;
-  category: string;
-};
-
-type CustomerOption = {
-  customerCode: string;
-  name: string;
 };
 
 type DeliveryOperationsPanelProps = {
   entries: DeliveryEntry[];
-  customers: CustomerOption[];
-  products: ProductOption[];
+  areas: Array<{ code: string; name: string }>;
+  counts: {
+    delivered: number;
+    skipped: number;
+    paused: number;
+    pending: number;
+    total: number;
+  };
+  filters: {
+    date: string;
+    area: string;
+    status: DeliveryStatus;
+  };
+  locale: string;
+  startRun: boolean;
 };
+
+const statusOptions: Array<{ value: DeliveryStatus; label: string }> = [
+  { value: "ALL", label: "All" },
+  { value: "DELIVERED", label: "Delivered" },
+  { value: "SKIPPED", label: "Skipped" },
+  { value: "PAUSED", label: "Paused" },
+  { value: "PENDING", label: "Pending" },
+];
+
+function getStatusTone(status: DeliveryEntry["status"]) {
+  if (status === "DELIVERED") return "success";
+  if (status === "PAUSED") return "warning";
+  if (status === "SKIPPED") return "danger";
+  return "blue";
+}
 
 export function DeliveryOperationsPanel({
   entries,
-  customers,
-  products,
+  areas,
+  counts,
+  filters,
+  locale,
+  startRun,
 }: DeliveryOperationsPanelProps) {
   const router = useRouter();
-  const defaultEntry = useMemo(
-    () => entries.find((entry) => entry.customerCode === customers[0]?.customerCode) || entries[0],
-    [customers, entries],
-  );
-  const [selectedCustomerCode, setSelectedCustomerCode] = useState(
-    defaultEntry?.customerCode || "",
-  );
-  const [status, setStatus] = useState("DELIVERED");
-  const [extraQuantity, setExtraQuantity] = useState("0");
-  const [finalQuantity, setFinalQuantity] = useState(String(defaultEntry?.finalQuantity ?? 0));
-  const [note, setNote] = useState(defaultEntry?.note || "");
-  const [productCode, setProductCode] = useState("");
-  const [productQuantity, setProductQuantity] = useState("1");
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localEntries, setLocalEntries] = useState(entries);
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [isLocationOpen, setIsLocationOpen] = useState(startRun);
+  const [locationOptions, setLocationOptions] = useState(areas);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
+  const [locationError, setLocationError] = useState("");
+
+  const STATUS_PRIORITY: Record<string, number> = {
+    PENDING: 1,
+    PAUSED: 2,
+    SKIPPED: 3,
+    DELIVERED: 4,
+  };
 
   useEffect(() => {
-    const entry = entries.find((item) => item.customerCode === selectedCustomerCode);
+    setLocalEntries(entries);
+  }, [entries]);
 
-    if (!entry) {
-      return;
+  const sortedEntries = useMemo(() => {
+    return [...localEntries].sort((a, b) => {
+      const pA = STATUS_PRIORITY[a.status] || 5;
+      const pB = STATUS_PRIORITY[b.status] || 5;
+      if (pA !== pB) return pA - pB;
+      return a.customerName.localeCompare(b.customerName);
+    });
+  }, [localEntries]);
+
+  const selectedAreaName = useMemo(
+    () => areas.find((area) => area.code === filters.area)?.name || "All locations",
+    [areas, filters.area],
+  );
+
+  useEffect(() => {
+    if (startRun) {
+      openLocationSelector();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startRun]);
 
-    setStatus(entry.status === "PENDING" ? "DELIVERED" : entry.status);
-    setExtraQuantity(String(entry.extraQuantity));
-    setFinalQuantity(String(entry.finalQuantity || entry.baseQuantity));
-    setNote(entry.note || "");
-  }, [entries, selectedCustomerCode]);
+  function updateFilters(nextFilters: Partial<typeof filters>) {
+    const params = new URLSearchParams();
+    const next = { ...filters, ...nextFilters };
 
-  async function saveDelivery(payload: {
-    customerCode: string;
-    status: string;
-    extraQuantity?: number;
-    finalQuantity?: number;
-    note?: string;
-    items?: Array<{ productCode: string; quantity: number }>;
-  }) {
-    setIsSubmitting(true);
-    setError("");
+    if (next.date) params.set("date", next.date);
+    if (next.area) params.set("area", next.area);
+    if (next.status !== "ALL") params.set("status", next.status);
+
+    router.push(`/${locale}/admin/deliveries?${params.toString()}`);
+  }
+
+  async function openLocationSelector() {
+    setIsLocationOpen(true);
+    setLocationError("");
+    setIsLoadingLocations(true);
 
     try {
-      const response = await fetch("/api/deliveries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = (await response.json()) as { error?: string };
-
-      if (!response.ok) {
-        throw new Error(data.error || "Unable to save delivery");
-      }
-
-      router.refresh();
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Unable to save delivery");
+      const response = await fetch("/api/areas", { cache: "no-store" });
+      const data = (await response.json()) as {
+        areas?: Array<{ code: string; name: string; isActive?: boolean }>;
+      };
+      const areaPayload: Array<{ code: string; name: string; isActive?: boolean }> =
+        data.areas || areas;
+      const activeAreas = areaPayload
+        .filter((area) => area.isActive !== false)
+        .map((area) => ({ code: area.code, name: area.name }));
+      setLocationOptions(activeAreas);
+    } catch {
+      setLocationError("Unable to load locations. Showing cached locations.");
+      setLocationOptions(areas);
     } finally {
-      setIsSubmitting(false);
+      setIsLoadingLocations(false);
+    }
+  }
+
+  function selectLocation(areaCode: string) {
+    if (areaCode) {
+      window.localStorage.setItem("milkman:last-area", areaCode);
+    }
+    setIsLocationOpen(false);
+    updateFilters({ area: areaCode, status: "ALL" });
+  }
+
+  async function saveStatus(
+    customerCode: string,
+    type: "DELIVERED" | "SKIPPED" | "PAUSED" | "EXTRA" | "RESET",
+    currentStatus: string
+  ) {
+    const isTogglingOff = type === "RESET" || currentStatus === type;
+    const finalType = type === "EXTRA" ? "DELIVERED" : type;
+    setLoadingKey(`${customerCode}:${type}`);
+
+    // Optimistic update
+    setLocalEntries((prev) =>
+      prev.map((entry) => {
+        if (entry.customerCode !== customerCode) return entry;
+        
+        if (type === "RESET") {
+          return { ...entry, status: "PENDING", extraQuantity: 0 };
+        }
+        if (type === "EXTRA") {
+          return { ...entry, status: "DELIVERED", extraQuantity: (entry.extraQuantity || 0) + 1 };
+        }
+        return { ...entry, status: isTogglingOff ? "PENDING" : type };
+      })
+    );
+
+    try {
+      if (isTogglingOff) {
+        await fetch(`/api/deliveries?customerCode=${customerCode}&date=${filters.date}`, {
+          method: "DELETE",
+        });
+      } else {
+        const body: any = { customerCode, type: finalType, date: filters.date };
+        if (type === "EXTRA") {
+          const currentEntry = localEntries.find(e => e.customerCode === customerCode);
+          body.extraQuantity = (currentEntry?.extraQuantity || 0) + 1;
+        }
+        
+        await fetch("/api/deliveries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      }
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to save status:", error);
+      setLocalEntries(entries);
+    } finally {
+      setLoadingKey(null);
+    }
+  }
+
+  async function markAllDelivered() {
+    const pending = localEntries.filter(e => e.status === "PENDING");
+    if (pending.length === 0) return;
+
+    setLoadingKey("all:DELIVERED");
+    
+    // Optimistic update
+    setLocalEntries(prev => prev.map(e => e.status === "PENDING" ? { ...e, status: "DELIVERED" } : e));
+
+    try {
+      await Promise.all(pending.map(e => 
+        fetch("/api/deliveries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customerCode: e.customerCode, type: "DELIVERED", date: filters.date }),
+        })
+      ));
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      setLocalEntries(entries);
+    } finally {
+      setLoadingKey(null);
     }
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-      <AdminCard>
-        <div className="space-y-3">
-          {entries.map((task) => (
-            <article key={task.customerCode} className="admin-panel-muted rounded-[26px] p-4">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-lg font-semibold text-[var(--admin-text)]">
-                      {task.customerName}
-                    </h2>
-                    <AdminBadge
-                      tone={
-                        task.status === "DELIVERED"
-                          ? "success"
-                          : task.status === "PAUSED"
-                            ? "warning"
-                            : "danger"
-                      }
-                    >
-                      {task.status}
-                    </AdminBadge>
-                  </div>
-                  <p className="mt-1 text-sm text-[var(--admin-muted)]">
-                    {task.quantityLabel} planned • {task.route} • {task.areaCode}
-                  </p>
-                  <p className="mt-1 text-sm text-[var(--admin-muted)]">
-                    Final: {task.finalQuantity.toFixed(1)} L • Extra: {task.extraQuantity.toFixed(1)} L
-                  </p>
-                  {task.productItems.length ? (
-                    <p className="mt-1 text-sm text-[var(--admin-muted)]">
-                      Add-ons:{" "}
-                      {task.productItems
-                        .map((item) => `${item.productName || "Item"} x ${item.quantity || 0}`)
-                        .join(", ")}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="grid gap-2 sm:grid-cols-3 xl:w-[420px]">
-                  <AdminButton
-                    className="justify-center"
-                    onClick={() =>
-                      saveDelivery({
-                        customerCode: task.customerCode,
-                        status: "DELIVERED",
-                        finalQuantity: task.baseQuantity + task.extraQuantity,
-                        extraQuantity: task.extraQuantity,
-                        note: task.note,
-                      })
-                    }
-                  >
-                    Delivered
-                  </AdminButton>
-                  <AdminButton
-                    variant="secondary"
-                    className="justify-center"
-                    onClick={() =>
-                      saveDelivery({
-                        customerCode: task.customerCode,
-                        status: "SKIPPED",
-                        finalQuantity: 0,
-                        note: task.note,
-                      })
-                    }
-                  >
-                    Skip
-                  </AdminButton>
-                  <AdminButton
-                    variant="outline"
-                    className="justify-center"
-                    onClick={() =>
-                      saveDelivery({
-                        customerCode: task.customerCode,
-                        status: "PAUSED",
-                        finalQuantity: 0,
-                        note: task.note,
-                      })
-                    }
-                  >
-                    Pause
-                  </AdminButton>
-                </div>
-              </div>
-
-              <div className="admin-divider my-5" />
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2 text-sm text-[var(--admin-muted)]">
-                  <ShieldAlert className="h-4 w-4 text-[var(--admin-primary-strong)]" />
-                  <span>{task.note || "No note added for today"}</span>
-                </div>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--admin-primary-strong)]"
-                  onClick={() => {
-                    setSelectedCustomerCode(task.customerCode);
-                    setStatus(task.status === "PENDING" ? "DELIVERED" : task.status);
-                    setExtraQuantity(String(task.extraQuantity));
-                    setFinalQuantity(String(task.finalQuantity || task.baseQuantity));
-                    setNote(task.note || "");
-                    setProductCode("");
-                    setProductQuantity("1");
-                  }}
-                >
-                  Load in form
-                  <MoveRight className="h-4 w-4" />
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </AdminCard>
-
-      <AdminCard>
+    <AdminCard className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-[var(--admin-text)]">Daily override form</h2>
-          <p className="mt-1 text-sm text-[var(--admin-muted)]">
-            Save extra milk and ad hoc product items for one customer today.
+          <div className="flex items-center gap-2">
+            <Filter className="h-5 w-5 text-[var(--admin-primary-strong)]" />
+            <h2 className="text-xl font-bold text-[var(--admin-text)] tracking-tight">Delivery Run</h2>
+          </div>
+          <p className="mt-1 text-sm text-[var(--admin-muted)] font-medium">
+            {selectedAreaName} · <span className="text-[var(--admin-text)] font-bold">{counts.pending}</span> pending of {counts.total}
           </p>
         </div>
-        <div className="mt-5 space-y-4">
-          <AdminField label="Customer">
-            <AdminSelect
-              value={selectedCustomerCode}
-              onChange={(event) => setSelectedCustomerCode(event.target.value)}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <AdminButton 
+            variant="secondary"
+            onClick={markAllDelivered} 
+            disabled={counts.pending === 0 || loadingKey !== null}
+            className="w-full sm:w-auto"
+          >
+            {loadingKey === "all:DELIVERED" ? "Processing..." : "Mark All Delivered"}
+          </AdminButton>
+          <AdminButton onClick={openLocationSelector} className="w-full sm:w-auto shadow-lg shadow-blue-100">
+            <Play className="h-4 w-4" />
+            {filters.area ? "Change Route" : "Start Route"}
+          </AdminButton>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3 bg-white/50 p-4 rounded-[24px] border border-[var(--admin-border)]">
+        <AdminField label="Date">
+          <div className="relative">
+            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-muted)]" />
+            <AdminInput
+              type="date"
+              value={filters.date}
+              onChange={(event) => updateFilters({ date: event.target.value })}
+              className="pl-10 h-11 rounded-xl"
+            />
+          </div>
+        </AdminField>
+        <AdminField label="Status Filter">
+          <AdminSelect
+            value={filters.status}
+            onChange={(event) => updateFilters({ status: event.target.value as DeliveryStatus })}
+            className="h-11 rounded-xl"
+          >
+            {statusOptions.map((status) => (
+              <option key={status.value} value={status.value}>
+                {status.label}
+              </option>
+            ))}
+          </AdminSelect>
+        </AdminField>
+        <AdminField label="Route Selection">
+          <AdminSelect
+            value={filters.area}
+            onChange={(event) => updateFilters({ area: event.target.value })}
+            className="h-11 rounded-xl"
+          >
+            <option value="">All locations</option>
+            {areas.map((area) => (
+              <option key={area.code} value={area.code}>
+                {area.name}
+              </option>
+            ))}
+          </AdminSelect>
+        </AdminField>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-4">
+        <div className="bg-emerald-50/50 border border-emerald-100 rounded-[22px] px-4 py-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Delivered</p>
+          <p className="mt-1 text-2xl font-black text-emerald-700">{counts.delivered}</p>
+        </div>
+        <div className="bg-rose-50/50 border border-rose-100 rounded-[22px] px-4 py-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-rose-600">Skipped</p>
+          <p className="mt-1 text-2xl font-black text-rose-700">{counts.skipped}</p>
+        </div>
+        <div className="bg-amber-50/50 border border-amber-100 rounded-[22px] px-4 py-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Paused</p>
+          <p className="mt-1 text-2xl font-black text-amber-700">{counts.paused}</p>
+        </div>
+        <div className="bg-blue-50/50 border border-blue-100 rounded-[22px] px-4 py-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Pending</p>
+          <p className="mt-1 text-2xl font-black text-blue-700">{counts.pending}</p>
+        </div>
+      </div>
+
+      <div className="max-h-[72vh] space-y-3 overflow-y-auto pr-1 custom-scrollbar">
+        {entries.length === 0 ? (
+          <div className="admin-panel-muted rounded-[24px] px-4 py-12 text-center border-2 border-dashed border-gray-200">
+            <MapPin className="mx-auto h-10 w-10 text-[var(--admin-primary-strong)] opacity-50" />
+            <h3 className="mt-4 text-lg font-bold text-[var(--admin-text)]">
+              {counts.total === 0 && filters.area
+                ? "No customers on this route"
+                : "No matching deliveries"}
+            </h3>
+            <p className="mx-auto mt-2 max-w-xs text-sm text-[var(--admin-muted)]">
+              Check filters or select another location to start marking.
+            </p>
+          </div>
+        ) : null}
+
+        {sortedEntries.map((task) => {
+          const isDelivered = task.status === "DELIVERED";
+          const isSkipped = task.status === "SKIPPED";
+          const isPaused = task.status === "PAUSED";
+          const isPending = task.status === "PENDING";
+
+          return (
+            <article
+              key={task.customerCode}
+              className={cn(
+                "admin-panel rounded-[24px] px-4 py-4 transition-all duration-300 border border-transparent",
+                isDelivered ? "bg-[#f0fdf4] border-emerald-100/50" : "bg-white hover:border-gray-200",
+                !isPending && "opacity-90"
+              )}
             >
-              {customers.map((customer) => (
-                <option key={customer.customerCode} value={customer.customerCode}>
-                  {customer.name} • {customer.customerCode}
-                </option>
-              ))}
-            </AdminSelect>
-          </AdminField>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                {/* LEFT: Customer Info */}
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className={cn(
+                    "h-12 w-12 shrink-0 flex items-center justify-center rounded-2xl transition-colors",
+                    isDelivered ? "bg-emerald-100 text-emerald-600" :
+                    isSkipped ? "bg-rose-100 text-rose-600" :
+                    isPaused ? "bg-amber-100 text-amber-600" : "bg-blue-50 text-blue-600"
+                  )}>
+                    {isDelivered ? <Check className="h-6 w-6" /> :
+                     isSkipped ? <X className="h-6 w-6" /> :
+                     isPaused ? <Pause className="h-6 w-6" /> : <MapPin className="h-6 w-6" />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h2 className="truncate text-[15px] font-black text-[var(--admin-text)]">
+                        {task.customerName}
+                      </h2>
+                      <AdminBadge tone={getStatusTone(task.status)} className="text-[10px] font-black uppercase h-5 px-2">
+                        {task.status}
+                      </AdminBadge>
+                    </div>
+                    <p className="mt-0.5 text-xs font-bold text-gray-500 truncate uppercase tracking-tight">
+                      {task.route} • <span className="text-[var(--admin-primary-strong)]">{task.quantityLabel}</span>
+                    </p>
+                  </div>
+                </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <AdminField label="Status">
-              <AdminSelect value={status} onChange={(event) => setStatus(event.target.value)}>
-                <option value="DELIVERED">Delivered</option>
-                <option value="SKIPPED">Skipped</option>
-                <option value="PAUSED">Paused</option>
-              </AdminSelect>
-            </AdminField>
-            <AdminField label="Extra milk (L)">
-              <AdminInput
-                value={extraQuantity}
-                onChange={(event) => setExtraQuantity(event.target.value)}
-              />
-            </AdminField>
-            <AdminField label="Final quantity (L)">
-              <AdminInput
-                value={finalQuantity}
-                onChange={(event) => setFinalQuantity(event.target.value)}
-              />
-            </AdminField>
-          </div>
+                {/* CENTER: Notes (Only if exists) */}
+                <div className="flex-1 hidden md:flex items-center px-4">
+                  {task.note && (
+                    <p className="text-xs italic text-gray-400 font-medium truncate max-w-[200px]">
+                      "{task.note}"
+                    </p>
+                  )}
+                </div>
 
-          <AdminField label="Add-on product">
-            <AdminSelect value={productCode} onChange={(event) => setProductCode(event.target.value)}>
-              <option value="">No add-on product</option>
-              {products.map((product) => (
-                <option key={product.code} value={product.code}>
-                  {product.name} • {product.code}
-                </option>
-              ))}
-            </AdminSelect>
-          </AdminField>
+                {/* RIGHT: Delivery Actions */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => saveStatus(task.customerCode, isDelivered ? "RESET" : "DELIVERED", task.status)}
+                    disabled={loadingKey !== null}
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-full transition-all active:scale-90",
+                      isDelivered 
+                        ? "bg-[#22C55E] text-white shadow-md" 
+                        : "bg-green-50 text-[#22C55E] hover:bg-green-100"
+                    )}
+                    title={isDelivered ? "Undo Delivery" : "Mark Delivered"}
+                  >
+                    {loadingKey === `${task.customerCode}:DELIVERED` ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <Check className="h-[22px] w-[22px] stroke-[3]" />
+                    )}
+                  </button>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <AdminField label="Product quantity">
-              <AdminInput
-                value={productQuantity}
-                onChange={(event) => setProductQuantity(event.target.value)}
-              />
-            </AdminField>
-            <AdminField label="Note">
-              <AdminInput value={note} onChange={(event) => setNote(event.target.value)} />
-            </AdminField>
-          </div>
+                  <button
+                    type="button"
+                    onClick={() => saveStatus(task.customerCode, isSkipped ? "RESET" : "SKIPPED", task.status)}
+                    disabled={loadingKey !== null}
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-full transition-all active:scale-90",
+                      isSkipped 
+                        ? "bg-[#EF4444] text-white shadow-md" 
+                        : "bg-red-50 text-[#EF4444] hover:bg-red-100"
+                    )}
+                    title={isSkipped ? "Undo Skip" : "Mark Skipped"}
+                  >
+                    {loadingKey === `${task.customerCode}:SKIPPED` ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <X className="h-[22px] w-[22px] stroke-[3]" />
+                    )}
+                  </button>
 
-          {error ? (
-            <div className="rounded-[18px] bg-[var(--admin-danger-soft)] px-4 py-3 text-sm font-medium text-[#d14646]">
-              {error}
+                  <button
+                    type="button"
+                    onClick={() => saveStatus(task.customerCode, isPaused ? "RESET" : "PAUSED", task.status)}
+                    disabled={loadingKey !== null}
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-full transition-all active:scale-90",
+                      isPaused 
+                        ? "bg-[#F59E0B] text-white shadow-md" 
+                        : "bg-amber-50 text-[#F59E0B] hover:bg-amber-100"
+                    )}
+                    title={isPaused ? "Undo Pause" : "Mark Paused"}
+                  >
+                    {loadingKey === `${task.customerCode}:PAUSED` ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <Pause className="h-[22px] w-[22px] stroke-[3]" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      {isLocationOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/35 p-3 sm:items-center sm:justify-center">
+          <div className="admin-panel w-full max-w-lg rounded-[24px] p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--admin-text)]">
+                  Select route location
+                </h2>
+                <p className="mt-1 text-sm text-[var(--admin-muted)]">
+                  Pick one area to load only its customers for the morning run.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="admin-secondary-button h-9 w-9 p-0"
+                onClick={() => setIsLocationOpen(false)}
+                aria-label="Close location selector"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-          ) : null}
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            <AdminButton
-              className="justify-center"
-              disabled={isSubmitting}
-              onClick={() =>
-                saveDelivery({
-                  customerCode: selectedCustomerCode,
-                  status,
-                  extraQuantity: Number(extraQuantity || 0),
-                  finalQuantity: Number(finalQuantity || 0),
-                  note,
-                  items:
-                    productCode && Number(productQuantity) > 0
-                      ? [{ productCode, quantity: Number(productQuantity) }]
-                      : [],
-                })
-              }
-            >
-              Save daily record
-            </AdminButton>
-            <AdminButton
-              variant="secondary"
-              className="justify-center"
-              disabled={isSubmitting}
-              onClick={() => {
-                const entry = entries.find((item) => item.customerCode === selectedCustomerCode);
-                setExtraQuantity("0");
-                setFinalQuantity(String(entry?.baseQuantity || 0));
-                setProductCode("");
-                setProductQuantity("1");
-                setNote(entry?.note || "");
-              }}
-            >
-              Reset form
-            </AdminButton>
+            <div className="mt-4 grid max-h-[52vh] gap-2 overflow-y-auto pr-1">
+              {isLoadingLocations ? (
+                <div className="admin-panel-muted rounded-[16px] px-4 py-3 text-sm text-[var(--admin-muted)]">
+                  Loading locations...
+                </div>
+              ) : null}
+              {locationError ? (
+                <div className="rounded-[16px] border border-[var(--admin-border)] bg-white px-4 py-3 text-sm text-[var(--admin-muted)]">
+                  {locationError}
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className="admin-secondary-button justify-between px-4 py-3 text-left text-sm font-semibold"
+                onClick={() => selectLocation("")}
+              >
+                <span>All locations</span>
+                <MapPin className="h-4 w-4" />
+              </button>
+              {locationOptions.map((area) => (
+                <button
+                  key={area.code}
+                  type="button"
+                  className="admin-secondary-button justify-between px-4 py-3 text-left text-sm font-semibold"
+                  onClick={() => selectLocation(area.code)}
+                >
+                  <span>{area.name}</span>
+                  <MapPin className="h-4 w-4" />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </AdminCard>
-    </div>
+      ) : null}
+    </AdminCard>
   );
 }

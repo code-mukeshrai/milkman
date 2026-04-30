@@ -1,4 +1,4 @@
-export type CalendarStatus = "DELIVERED" | "SKIPPED" | "PAUSED";
+export type CalendarStatus = "DELIVERED" | "SKIPPED" | "PAUSED" | "PENDING";
 
 export type CalendarDayRecord = {
   dateKey: string;
@@ -11,6 +11,7 @@ export type CalendarDayRecord = {
   pausedCount?: number;
   skippedCount?: number;
   itemCount?: number;
+  isFuture?: boolean;
 };
 
 type BuildMonthOptions = {

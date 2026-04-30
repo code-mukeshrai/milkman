@@ -25,11 +25,11 @@ export default async function EditCustomerPage({ params }: EditCustomerPageProps
   }
 
   return (
-    <AdminShell locale={locale} title={t("editTitle")} subtitle={t("editSubtitle")}>
+    <AdminShell locale={locale} title={t("editTitle")} subtitle={t("editSubtitle")} hideHero={true}>
       <AdminCard>
         <div className="flex items-center gap-3">
           <Link
-            href={`/${locale}/admin/customers/${customer.customerCode}`}
+            href={`/${locale}/admin/customers/${customer.id}`}
             className="admin-icon-button h-11 w-11"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -54,7 +54,7 @@ export default async function EditCustomerPage({ params }: EditCustomerPageProps
           addressLine2: customer.addressLine2,
           areaCode: customer.areaCode,
           landmark: customer.landmark,
-          notes: customer.notes,
+          internalNote: customer.notes,
           quantityLiters: customer.quantity,
           pricePerLiter: customer.rate,
           unitLabel: "L",

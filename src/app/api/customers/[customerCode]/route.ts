@@ -3,7 +3,7 @@ import { z } from "zod";
 import { connectToDatabase } from "@/lib/db/connect";
 import { Area } from "@/models/area";
 import { CustomerProfile } from "@/models/customer-profile";
-import { Delivery } from "@/models/delivery";
+import { DeliveryException } from "@/models/delivery-exception";
 import { MilkPlan } from "@/models/milk-plan";
 import { Payment } from "@/models/payment";
 import { User } from "@/models/user";
@@ -118,7 +118,7 @@ export async function DELETE(_: Request, context: RouteContext) {
   }
 
   await Promise.all([
-    Delivery.deleteMany({ customerId: profile._id }),
+    DeliveryException.deleteMany({ customerId: profile._id }),
     Payment.deleteMany({ customerId: profile._id }),
     MilkPlan.deleteMany({ customerId: profile._id }),
     User.findByIdAndDelete(profile.userId),

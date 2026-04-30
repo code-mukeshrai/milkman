@@ -213,7 +213,8 @@
       "reports": "Reports",
       "purchases": "Purchases",
       "areas": "Areas",
-      "products": "Products"
+      "products": "Products",
+      "areaInsights": "Area Insights"
     },
     "dashboard": {
       "title": "Admin Dashboard",

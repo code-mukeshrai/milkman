@@ -34,6 +34,22 @@ export default async function CustomerCalendarPage({
   }
 
   const { customer, monthMeta, days, summary } = calendar;
+  
+  const now = new Date();
+  const processedDays = days.map(day => {
+    const dayDate = new Date(day.dateKey);
+    const isFuture = dayDate > now;
+    if (isFuture) {
+      return { 
+        ...day, 
+        liters: 0, 
+        status: "PENDING" as const, 
+        itemCount: 0, 
+        isFuture: true 
+      };
+    }
+    return { ...day, isFuture: false };
+  });
 
   return (
     <CustomerShell locale={locale}>
@@ -99,7 +115,7 @@ export default async function CustomerCalendarPage({
         <MonthGrid
           monthLabel={monthMeta.monthLabel}
           leadingBlankSlots={monthMeta.leadingBlankSlots}
-          days={days}
+          days={processedDays}
           variant="customer"
           showLegend={false}
           renderFooter={(day) => (

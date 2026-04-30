@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Minus, Plus } from "lucide-react";
 import {
   AdminButton,
   AdminCard,
@@ -23,7 +24,7 @@ type CustomerFormProps = {
     addressLine2: string;
     areaCode: string;
     landmark: string;
-    notes: string;
+    internalNote: string;
     quantityLiters: number;
     pricePerLiter: number;
     unitLabel: string;
@@ -49,7 +50,7 @@ export function CustomerForm({
       addressLine2: initialValues?.addressLine2 || "",
       areaCode: initialValues?.areaCode || areas[0]?.code || "",
       landmark: initialValues?.landmark || "",
-      notes: initialValues?.notes || "",
+      internalNote: initialValues?.internalNote || "",
       quantityLiters: String(initialValues?.quantityLiters ?? 2),
       pricePerLiter: String(initialValues?.pricePerLiter ?? 62),
       unitLabel: initialValues?.unitLabel || "L",
@@ -62,16 +63,29 @@ export function CustomerForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const updateQuantity = (delta: number) => {
+    setForm((prev) => {
+      const current = parseFloat(prev.quantityLiters) || 0;
+      const next = Math.max(0, current + delta);
+      return { ...prev, quantityLiters: String(next) };
+    });
+  };
+
   async function handleSubmit() {
     setIsSubmitting(true);
     setError("");
 
     try {
-      const payload = {
-        ...form,
+      const { internalNote, ...rest } = form;
+      const payload: any = {
+        ...rest,
         quantityLiters: Number(form.quantityLiters),
         pricePerLiter: Number(form.pricePerLiter),
       };
+
+      if (internalNote && internalNote.trim() !== "") {
+        payload.notes = internalNote;
+      }
       const response = await fetch(
         mode === "create" ? "/api/customers" : `/api/customers/${customerCode}`,
         {
@@ -178,12 +192,29 @@ export function CustomerForm({
 
         <div className="grid gap-4 sm:grid-cols-4">
           <AdminField label="Milk quantity">
-            <AdminInput
-              value={form.quantityLiters}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, quantityLiters: event.target.value }))
-              }
-            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => updateQuantity(-0.5)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--admin-border)] bg-white text-[var(--admin-muted)] transition hover:bg-[var(--admin-panel-muted)] active:scale-95"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <AdminInput
+                className="text-center font-bold"
+                value={form.quantityLiters}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, quantityLiters: event.target.value }))
+                }
+              />
+              <button
+                type="button"
+                onClick={() => updateQuantity(0.5)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--admin-border)] bg-white text-[var(--admin-muted)] transition hover:bg-[var(--admin-panel-muted)] active:scale-95"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
           </AdminField>
           <AdminField label="Rate per liter">
             <AdminInput
@@ -220,8 +251,10 @@ export function CustomerForm({
 
         <AdminField label="Internal note">
           <AdminTextarea
-            value={form.notes}
-            onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+            value={form.internalNote}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, internalNote: event.target.value }))
+            }
           />
         </AdminField>
 

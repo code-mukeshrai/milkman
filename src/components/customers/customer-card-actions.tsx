@@ -1,118 +1,88 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { BarChart2, Eye, FilePenLine, MoreVertical, PauseCircle, SkipForward, Truck } from "lucide-react";
+import { BarChart2, Eye, FilePenLine, MoreVertical } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type CustomerCardActionsProps = {
+  id: string;
   customerCode: string;
   locale: string;
+  onView?: (mode: "view" | "details") => void;
+  isMenuOpen?: boolean;
+  setMenuOpen?: (isOpen: boolean) => void;
 };
 
-export function CustomerCardActions({ customerCode, locale }: CustomerCardActionsProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [loading, setLoading] = useState<"DELIVERED" | "SKIPPED" | "PAUSED" | null>(null);
+export function CustomerCardActions({ 
+  id, 
+  customerCode, 
+  locale, 
+  onView,
+  isMenuOpen = false,
+  setMenuOpen,
+}: CustomerCardActionsProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
+      if (isMenuOpen && menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen?.(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  async function handleDeliveryAction(status: "DELIVERED" | "SKIPPED" | "PAUSED") {
-    setLoading(status);
-    try {
-      await fetch("/api/deliveries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerCode, status }),
-      });
-      router.refresh();
-    } finally {
-      setLoading(null);
-    }
-  }
+  }, [isMenuOpen, setMenuOpen]);
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      {/* Delivered */}
-      <button
-        type="button"
-        onClick={() => handleDeliveryAction("DELIVERED")}
-        disabled={loading !== null}
-        className="admin-primary-button px-4 py-3 text-sm font-semibold disabled:opacity-60"
-      >
-        <Truck className="h-4 w-4" />
-        {loading === "DELIVERED" ? "Saving…" : "Delivered"}
-      </button>
-
-      {/* Skipped */}
-      <button
-        type="button"
-        onClick={() => handleDeliveryAction("SKIPPED")}
-        disabled={loading !== null}
-        className="admin-secondary-button px-4 py-3 text-sm font-semibold disabled:opacity-60"
-      >
-        <SkipForward className="h-4 w-4" />
-        {loading === "SKIPPED" ? "Saving…" : "Skipped"}
-      </button>
-
-      {/* Paused */}
-      <button
-        type="button"
-        onClick={() => handleDeliveryAction("PAUSED")}
-        disabled={loading !== null}
-        className="admin-outline-button px-4 py-3 text-sm font-semibold disabled:opacity-60"
-      >
-        <PauseCircle className="h-4 w-4" />
-        {loading === "PAUSED" ? "Saving…" : "Paused"}
-      </button>
-
-      {/* 3-dot menu */}
+    <div className="flex items-center gap-2">
       <div className="relative" ref={menuRef}>
         <button
           type="button"
-          onClick={() => setMenuOpen((prev) => !prev)}
-          className="admin-outline-button px-3 py-3 text-sm font-semibold"
+          onClick={(e) => { 
+            e.stopPropagation();
+            setMenuOpen?.(!isMenuOpen); 
+          }}
+          className={cn(
+            "flex h-10 w-10 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-500 shadow-sm transition-all active:scale-90 hover:bg-gray-50",
+            isMenuOpen ? "bg-gray-100 border-gray-300" : ""
+          )}
           aria-label="More options"
         >
-          <MoreVertical className="h-4 w-4" />
+          <MoreVertical className="h-5 w-5" />
         </button>
 
-        {menuOpen && (
-          <div className="absolute right-0 top-full z-20 mt-2 w-44 overflow-hidden rounded-[16px] border border-[var(--admin-border)] bg-white shadow-lg">
-            <Link
-              href={`/${locale}/admin/customers/${customerCode}`}
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] hover:bg-[var(--admin-panel-muted)] transition-colors"
+        {isMenuOpen && (
+            <div 
+              className="absolute right-0 top-full z-[100] mt-2 w-48 origin-top-right overflow-hidden rounded-[22px] border border-gray-200 bg-white opacity-100 shadow-[0_20px_50px_rgba(0,0,0,0.2)] animate-in fade-in zoom-in duration-200"
+              style={{ top: "100%", backgroundColor: "white" }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <Eye className="h-4 w-4 text-[var(--admin-muted)]" />
-              View
-            </Link>
-            <Link
-              href={`/${locale}/admin/customers/${customerCode}?tab=analytics`}
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] hover:bg-[var(--admin-panel-muted)] transition-colors"
-            >
-              <BarChart2 className="h-4 w-4 text-[var(--admin-muted)]" />
-              Details
-            </Link>
-            <Link
-              href={`/${locale}/admin/customers/${customerCode}/edit`}
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--admin-text)] hover:bg-[var(--admin-panel-muted)] transition-colors"
-            >
-              <FilePenLine className="h-4 w-4 text-[var(--admin-muted)]" />
-              Edit
-            </Link>
-          </div>
+              <div className="py-1.5 bg-white">
+                <button
+                  onClick={() => { setMenuOpen?.(false); onView?.("view"); }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  <Eye className="h-4.5 w-4.5 text-gray-400" />
+                  View
+                </button>
+                <button
+                  onClick={() => { setMenuOpen?.(false); onView?.("details"); }}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  <BarChart2 className="h-4.5 w-4.5 text-gray-400" />
+                  Details
+                </button>
+                <Link
+                  href={`/${locale}/admin/customers/${id}/edit`}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                  onClick={() => setMenuOpen?.(false)}
+                >
+                  <FilePenLine className="h-4.5 w-4.5 text-gray-400" />
+                  Edit
+                </Link>
+              </div>
+            </div>
         )}
       </div>
     </div>
