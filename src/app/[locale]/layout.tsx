@@ -4,7 +4,7 @@ import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { PlatformHeader } from "@/components/layout/platform-header";
 import { locales, type AppLocale } from "@/i18n/routing";
-import { AuthGuard } from "@/components/auth/auth-guard";
+import { ConditionalHeader } from "@/components/layout/conditional-header";
 
 type LocaleLayoutProps = {
   children: ReactNode;
@@ -26,12 +26,12 @@ export default async function LocaleLayout({
 
   return (
     <NextIntlClientProvider messages={messages}>
-      <AuthGuard>
-        <div className="app-shell" lang={locale}>
+      <div className="app-shell" lang={locale}>
+        <ConditionalHeader>
           <PlatformHeader locale={locale as AppLocale} />
-          {children}
-        </div>
-      </AuthGuard>
+        </ConditionalHeader>
+        {children}
+      </div>
     </NextIntlClientProvider>
   );
 }
